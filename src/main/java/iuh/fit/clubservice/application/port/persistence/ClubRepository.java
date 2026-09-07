@@ -1,0 +1,16 @@
+package iuh.fit.clubservice.application.port.persistence;
+
+import iuh.fit.clubservice.domain.entity.Club;
+import iuh.fit.clubservice.domain.enums.SportType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ClubRepository {
+    Club save(Club club);
+    Optional<Club> findById(UUID clubId);
+    Page<Club> searchClubs(SportType sportType, String keyword, Pageable pageable);
+    void deleteById(UUID clubId);
+}

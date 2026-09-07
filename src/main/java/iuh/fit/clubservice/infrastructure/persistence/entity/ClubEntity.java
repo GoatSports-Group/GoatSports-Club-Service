@@ -1,0 +1,88 @@
+package iuh.fit.clubservice.infrastructure.persistence.entity;
+
+import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
+import iuh.fit.clubservice.domain.enums.ClubPrivacy;
+import iuh.fit.clubservice.domain.enums.SportType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+@Entity
+@Table(name = "clubs")
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ClubEntity extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "club_id")
+    private UUID clubId;
+
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Column(name = "description", length = 3000)
+    private String description;
+
+    @Column(name = "logo_url", length = 1000)
+    private String logoUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sport_type", nullable = false)
+    private SportType sportType;
+
+    @Column(name = "owner_id", nullable = false)
+    private UUID ownerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_mode", nullable = false)
+    private ClubApprovalMode approvalMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "privacy", nullable = false)
+    private ClubPrivacy privacy;
+
+    @Column(name = "conversation_id")
+    private UUID conversationId;
+
+    @Column(name = "active")
+    private Boolean active;
+
+    @Column(name = "win_count", nullable = false)
+    private Integer winCount;
+
+    @Column(name = "loss_count", nullable = false)
+    private Integer lossCount;
+
+    @Column(name = "draw_count", nullable = false)
+    private Integer drawCount;
+
+    @Column(name = "match_count", nullable = false)
+    private Integer matchCount;
+
+    @Column(name = "win_rate", nullable = false)
+    private Double winRate;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<ClubMemberEntity> members = new HashSet<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<ClubFeeEntity> fees = new HashSet<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
+    @Builder.Default
+    private Set<ClubActivityEntity> activities = new HashSet<>();
+}

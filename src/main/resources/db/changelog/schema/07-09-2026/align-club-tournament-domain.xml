@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+
+    <changeSet id="20260907-align-club-domain" author="minhdat">
+        <renameColumn tableName="clubs" oldColumnName="avatar_url" newColumnName="logo_url"
+                      columnDataType="VARCHAR(1000)"/>
+        <renameColumn tableName="clubs" oldColumnName="group_chat_id" newColumnName="conversation_id"
+                      columnDataType="UUID"/>
+        <addColumn tableName="clubs">
+            <column name="win_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="loss_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="draw_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="match_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="win_rate" type="DOUBLE" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </addColumn>
+
+        <renameColumn tableName="club_members" oldColumnName="club_member_id" newColumnName="membership_id"
+                      columnDataType="UUID"/>
+        <addColumn tableName="club_members">
+            <column name="responded_by" type="UUID"/>
+            <column name="responded_at" type="DATETIME"/>
+        </addColumn>
+        <sql>
+            UPDATE club_members SET status = 'ACTIVE' WHERE status = 'ACCEPTED';
+            UPDATE club_members SET status = 'REMOVED' WHERE status = 'KICKED';
+        </sql>
+
+        <renameColumn tableName="club_activities" oldColumnName="start_time" newColumnName="start_at"
+                      columnDataType="DATETIME"/>
+        <renameColumn tableName="club_activities" oldColumnName="end_time" newColumnName="end_at"
+                      columnDataType="DATETIME"/>
+        <addColumn tableName="club_activities">
+            <column name="created_by_user_id" type="UUID"/>
+        </addColumn>
+        <sql><![CDATA[
+            UPDATE club_activities
+            SET start_at = COALESCE(start_at, created_at, CURRENT_TIMESTAMP);
+            UPDATE club_activities
+            SET end_at = COALESCE(end_at, start_at + INTERVAL '1 hour');
+            UPDATE club_activities activity
+            SET created_by_user_id = CASE
+                WHEN activity.created_by ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+                    THEN activity.created_by::uuid
+                ELSE club.owner_id
+            END
+            FROM clubs club
+            WHERE club.club_id = activity.club_id;
+        ]]></sql>
+        <addNotNullConstraint tableName="club_activities" columnName="start_at" columnDataType="DATETIME"/>
+        <addNotNullConstraint tableName="club_activities" columnName="end_at" columnDataType="DATETIME"/>
+        <addNotNullConstraint tableName="club_activities" columnName="created_by_user_id" columnDataType="UUID"/>
+    </changeSet>
+
+    <changeSet id="20260907-align-tournament-domain" author="minhdat">
+        <sql>
+            UPDATE tournaments SET status = 'REGISTRATION_OPEN' WHERE status = 'OPEN_REGISTRATION';
+            UPDATE tournaments SET format = 'SINGLE_ELIMINATION' WHERE format IN ('DOUBLE_ELIMINATION', 'SWISS');
+            UPDATE tournament_registrations SET status = 'REJECTED' WHERE status = 'DISQUALIFIED';
+            UPDATE tournament_fixtures SET status = 'IN_PROGRESS' WHERE status = 'PLAYING';
+        </sql>
+        <sql><![CDATA[
+            ALTER TABLE tournaments
+            ALTER COLUMN rules TYPE JSONB
+            USING CASE
+                WHEN rules IS NULL OR BTRIM(rules) = '' THEN '[]'::jsonb
+                ELSE jsonb_build_array(rules)
+            END;
+        ]]></sql>
+
+        <dropNotNullConstraint tableName="tournament_registrations" columnName="player_id" columnDataType="UUID"/>
+        <addColumn tableName="tournament_registrations">
+            <column name="registered_by" type="UUID"/>
+            <column name="status_reason" type="VARCHAR(1000)"/>
+            <column name="confirmed_at" type="DATETIME"/>
+        </addColumn>
+        <sql>
+            UPDATE tournament_registrations
+            SET registered_by = player_id,
+                confirmed_at = CASE WHEN status = 'CONFIRMED' THEN registered_at ELSE NULL END;
+        </sql>
+        <addNotNullConstraint tableName="tournament_registrations" columnName="registered_by" columnDataType="UUID"/>
+
+        <addColumn tableName="tournament_lineups">
+            <column name="shirt_number" type="INT"/>
+        </addColumn>
+
+        <addColumn tableName="tournament_fixtures">
+            <column name="next_fixture_id" type="UUID"/>
+            <column name="reservation_id" type="UUID"/>
+        </addColumn>
+        <addUniqueConstraint tableName="tournament_fixtures" columnNames="reservation_id"
+                             constraintName="uc_tournament_fixtures_reservation"/>
+    </changeSet>
+
+    <changeSet id="20260907-create-club-fee-domain" author="minhdat">
+        <createTable tableName="club_fees">
+            <column name="fee_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="club_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="amount" type="DOUBLE"><constraints nullable="false"/></column>
+            <column name="due_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="required" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </createTable>
+
+        <createTable tableName="club_fee_payments">
+            <column name="fee_payment_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="fee_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="membership_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="amount" type="DOUBLE"><constraints nullable="false"/></column>
+            <column name="payment_id" type="UUID"/>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="paid_at" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260907-create-tournament-support-domain" author="minhdat">
+        <createTable tableName="tournament_venue_reservations">
+            <column name="reservation_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tournament_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="venue_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="court_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="booking_id" type="UUID"/>
+            <column name="play_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="start_time" type="TIME"><constraints nullable="false"/></column>
+            <column name="end_time" type="TIME"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+        </createTable>
+
+        <createTable tableName="tournament_eligibility_rules">
+            <column name="rule_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tournament_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="rule_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="operator" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="expected_value" type="VARCHAR(1000)"><constraints nullable="false"/></column>
+        </createTable>
+
+        <createTable tableName="tournament_payments">
+            <column name="tournament_payment_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="registration_id" type="UUID"><constraints nullable="false" unique="true"/></column>
+            <column name="amount" type="DOUBLE"><constraints nullable="false"/></column>
+            <column name="payment_id" type="UUID"/>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="paid_at" type="DATETIME"/>
+        </createTable>
+
+        <createTable tableName="tournament_standings">
+            <column name="standing_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="DATETIME"/><column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/><column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tournament_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="registration_id" type="UUID"><constraints nullable="false" unique="true"/></column>
+            <column name="played" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="won" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="drawn" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="lost" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="score_for" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="score_against" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="points" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="rank" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260907-add-club-tournament-relationships" author="minhdat">
+        <addForeignKeyConstraint baseTableName="club_members" baseColumnNames="club_id"
+                                 constraintName="fk_club_members_club" referencedTableName="clubs" referencedColumnNames="club_id"/>
+        <addUniqueConstraint tableName="club_members" columnNames="club_id,user_id"
+                             constraintName="uc_club_members_club_user"/>
+        <addForeignKeyConstraint baseTableName="club_activities" baseColumnNames="club_id"
+                                 constraintName="fk_club_activities_club" referencedTableName="clubs" referencedColumnNames="club_id"/>
+        <addForeignKeyConstraint baseTableName="club_fees" baseColumnNames="club_id"
+                                 constraintName="fk_club_fees_club" referencedTableName="clubs" referencedColumnNames="club_id"/>
+        <addForeignKeyConstraint baseTableName="club_fee_payments" baseColumnNames="fee_id"
+                                 constraintName="fk_club_fee_payments_fee" referencedTableName="club_fees" referencedColumnNames="fee_id"/>
+        <addForeignKeyConstraint baseTableName="club_fee_payments" baseColumnNames="membership_id"
+                                 constraintName="fk_club_fee_payments_membership" referencedTableName="club_members" referencedColumnNames="membership_id"/>
+
+        <addForeignKeyConstraint baseTableName="tournament_registrations" baseColumnNames="tournament_id"
+                                 constraintName="fk_tournament_registrations_tournament" referencedTableName="tournaments" referencedColumnNames="tournament_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_registrations" baseColumnNames="club_id"
+                                 constraintName="fk_tournament_registrations_club" referencedTableName="clubs" referencedColumnNames="club_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_lineups" baseColumnNames="registration_id"
+                                 constraintName="fk_tournament_lineups_registration" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="tournament_id"
+                                 constraintName="fk_tournament_fixtures_tournament" referencedTableName="tournaments" referencedColumnNames="tournament_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="registration1_id"
+                                 constraintName="fk_tournament_fixtures_registration1" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="registration2_id"
+                                 constraintName="fk_tournament_fixtures_registration2" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="winner_registration_id"
+                                 constraintName="fk_tournament_fixtures_winner" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="next_fixture_id"
+                                 constraintName="fk_tournament_fixtures_next" referencedTableName="tournament_fixtures" referencedColumnNames="fixture_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_venue_reservations" baseColumnNames="tournament_id"
+                                 constraintName="fk_tournament_reservations_tournament" referencedTableName="tournaments" referencedColumnNames="tournament_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_fixtures" baseColumnNames="reservation_id"
+                                 constraintName="fk_tournament_fixtures_reservation" referencedTableName="tournament_venue_reservations" referencedColumnNames="reservation_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_eligibility_rules" baseColumnNames="tournament_id"
+                                 constraintName="fk_tournament_rules_tournament" referencedTableName="tournaments" referencedColumnNames="tournament_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_payments" baseColumnNames="registration_id"
+                                 constraintName="fk_tournament_payments_registration" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_standings" baseColumnNames="tournament_id"
+                                 constraintName="fk_tournament_standings_tournament" referencedTableName="tournaments" referencedColumnNames="tournament_id"/>
+        <addForeignKeyConstraint baseTableName="tournament_standings" baseColumnNames="registration_id"
+                                 constraintName="fk_tournament_standings_registration" referencedTableName="tournament_registrations" referencedColumnNames="registration_id"/>
+    </changeSet>
+</databaseChangeLog>

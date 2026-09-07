@@ -1,0 +1,60 @@
+package iuh.fit.clubservice.infrastructure.persistence.repository;
+
+import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
+import iuh.fit.clubservice.domain.entity.TournamentRegistration;
+import iuh.fit.clubservice.domain.enums.RegistrationStatus;
+import iuh.fit.clubservice.infrastructure.persistence.mapper.TournamentRegistrationEntityMapper;
+import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTournamentRegistrationRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Repository
+@RequiredArgsConstructor
+public class TournamentRegistrationRepositoryImpl implements TournamentRegistrationRepository {
+    private final JpaTournamentRegistrationRepository jpaTournamentRegistrationRepository;
+    private final TournamentRegistrationEntityMapper tournamentRegistrationEntityMapper;
+
+    @Override
+    public TournamentRegistration save(TournamentRegistration registration) {
+        return tournamentRegistrationEntityMapper.toDomain(jpaTournamentRegistrationRepository.save(tournamentRegistrationEntityMapper.toEntity(registration)));
+    }
+
+    @Override
+    public Optional<TournamentRegistration> findById(UUID registrationId) {
+        return jpaTournamentRegistrationRepository.findById(registrationId).map(tournamentRegistrationEntityMapper::toDomain);
+    }
+
+    @Override
+    public List<TournamentRegistration> findByTournamentId(UUID tournamentId) {
+        return jpaTournamentRegistrationRepository.findByTournamentId(tournamentId).stream()
+                .map(tournamentRegistrationEntityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TournamentRegistration> findByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status) {
+        return jpaTournamentRegistrationRepository.findByTournamentIdAndStatus(tournamentId, status).stream()
+                .map(tournamentRegistrationEntityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<TournamentRegistration> findByTournamentIdAndPlayerId(UUID tournamentId, UUID playerId) {
+        return jpaTournamentRegistrationRepository.findByTournamentIdAndPlayerId(tournamentId, playerId).map(tournamentRegistrationEntityMapper::toDomain);
+    }
+
+    @Override
+    public long countByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status) {
+        return jpaTournamentRegistrationRepository.countByTournamentIdAndStatus(tournamentId, status);
+    }
+
+    @Override
+    public void deleteById(UUID registrationId) {
+        jpaTournamentRegistrationRepository.deleteById(registrationId);
+    }
+}

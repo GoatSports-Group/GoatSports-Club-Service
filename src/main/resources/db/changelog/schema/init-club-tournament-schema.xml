@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+
+    <changeSet id="1782500000001-1" author="minhdat">
+        <createTable tableName="clubs">
+            <column name="club_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_clubs"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(3000)"/>
+            <column name="avatar_url" type="VARCHAR(1000)"/>
+            <column name="cover_url" type="VARCHAR(1000)"/>
+            <column name="sport_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="region" type="VARCHAR(255)"/>
+            <column name="district" type="VARCHAR(255)"/>
+            <column name="city" type="VARCHAR(255)"/>
+            <column name="owner_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="owner_name" type="VARCHAR(255)"/>
+            <column name="approval_mode" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="privacy" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="membership_fee" type="DECIMAL(12, 2)"/>
+            <column name="member_count" type="INT" defaultValueNumeric="1"/>
+            <column name="max_members" type="INT" defaultValueNumeric="50"/>
+            <column name="group_chat_id" type="UUID"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+        </createTable>
+
+        <createTable tableName="club_members">
+            <column name="club_member_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_club_members"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="club_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_name" type="VARCHAR(255)"/>
+            <column name="user_avatar" type="VARCHAR(1000)"/>
+            <column name="user_phone" type="VARCHAR(50)"/>
+            <column name="role" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="intro_message" type="VARCHAR(1000)"/>
+            <column name="applied_at" type="DATETIME"/>
+            <column name="joined_at" type="DATETIME"/>
+            <column name="left_at" type="DATETIME"/>
+        </createTable>
+
+        <createTable tableName="club_activities">
+            <column name="activity_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_club_activities"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="club_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(2000)"/>
+            <column name="venue_id" type="UUID"/>
+            <column name="venue_name" type="VARCHAR(255)"/>
+            <column name="start_time" type="DATETIME"/>
+            <column name="end_time" type="DATETIME"/>
+            <column name="max_participants" type="INT"/>
+            <column name="current_participants" type="INT"/>
+            <column name="status" type="VARCHAR(50)"/>
+        </createTable>
+
+        <createTable tableName="tournaments">
+            <column name="tournament_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_tournaments"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(3000)"/>
+            <column name="banner_url" type="VARCHAR(1000)"/>
+            <column name="sport_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="format" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organizer_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organizer_name" type="VARCHAR(255)"/>
+            <column name="venue_id" type="UUID"/>
+            <column name="venue_name" type="VARCHAR(255)"/>
+            <column name="max_participants" type="INT"/>
+            <column name="current_participants" type="INT" defaultValueNumeric="0"/>
+            <column name="entry_fee" type="DECIMAL(12, 2)"/>
+            <column name="prize_pool" type="DECIMAL(12, 2)"/>
+            <column name="registration_open_date" type="DATE"/>
+            <column name="registration_close_date" type="DATE"/>
+            <column name="start_date" type="DATE"/>
+            <column name="end_date" type="DATE"/>
+            <column name="rules" type="VARCHAR(4000)"/>
+            <column name="prize_info" type="VARCHAR(2000)"/>
+        </createTable>
+
+        <createTable tableName="tournament_registrations">
+            <column name="registration_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_tournament_registrations"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tournament_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="player_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="player_name" type="VARCHAR(255)"/>
+            <column name="player_phone" type="VARCHAR(50)"/>
+            <column name="club_id" type="UUID"/>
+            <column name="club_name" type="VARCHAR(255)"/>
+            <column name="team_name" type="VARCHAR(255)"/>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="athlete_id_code" type="VARCHAR(100)"/>
+            <column name="id_number" type="VARCHAR(100)"/>
+            <column name="skill_level" type="VARCHAR(100)"/>
+            <column name="payment_id" type="UUID"/>
+            <column name="registered_at" type="DATETIME"/>
+        </createTable>
+
+        <createTable tableName="tournament_lineups">
+            <column name="lineup_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_tournament_lineups"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="registration_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="player_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="player_name" type="VARCHAR(255)"/>
+            <column name="player_phone" type="VARCHAR(50)"/>
+            <column name="lineup_role" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_starter" type="BOOLEAN" defaultValueBoolean="true"/>
+        </createTable>
+
+        <createTable tableName="tournament_fixtures">
+            <column name="fixture_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_tournament_fixtures"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tournament_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="round_name" type="VARCHAR(100)"/>
+            <column name="round_number" type="INT"/>
+            <column name="match_number" type="INT"/>
+            <column name="registration1_id" type="UUID"/>
+            <column name="team1_name" type="VARCHAR(255)"/>
+            <column name="registration2_id" type="UUID"/>
+            <column name="team2_name" type="VARCHAR(255)"/>
+            <column name="score1" type="INT"/>
+            <column name="score2" type="INT"/>
+            <column name="winner_registration_id" type="UUID"/>
+            <column name="scheduled_time" type="DATETIME"/>
+            <column name="court_name" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
