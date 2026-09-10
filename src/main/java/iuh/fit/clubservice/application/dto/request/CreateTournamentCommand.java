@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.application.dto.request;
 
+import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.TournamentFormat;
 import lombok.*;
@@ -22,4 +23,17 @@ public class CreateTournamentCommand {
     private LocalDate startDate;
     private LocalDate endDate;
     private List<String> rules;
+
+    public void validate() throws ServiceException {
+        if (registrationOpenDate == null || registrationCloseDate == null
+                || startDate == null || endDate == null
+                || registrationCloseDate.isBefore(registrationOpenDate)
+                || startDate.isBefore(registrationCloseDate)
+                || endDate.isBefore(startDate)) {
+            throw new ServiceException("Mốc thời gian giải đấu không hợp lệ.");
+        }
+        if (maxParticipants != null && maxParticipants < 2) {
+            throw new ServiceException("Giải đấu cần ít nhất 2 người hoặc đội.");
+        }
+    }
 }

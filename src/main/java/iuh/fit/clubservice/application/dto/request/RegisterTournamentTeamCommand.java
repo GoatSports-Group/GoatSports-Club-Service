@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.application.dto.request;
 
+import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.domain.enums.LineupRole;
 import iuh.fit.clubservice.domain.enums.RegistrationType;
 import iuh.fit.clubservice.domain.enums.SkillLevel;
@@ -17,6 +18,16 @@ public class RegisterTournamentTeamCommand {
     private RegistrationType type;
     private SkillLevel skillLevel;
     private List<LineupItem> lineups;
+
+    public void validate(RegistrationType registrationType) throws ServiceException {
+        if (registrationType == RegistrationType.CLUB && clubId == null) {
+            throw new ServiceException("Đăng ký theo câu lạc bộ cần clubId.");
+        }
+        if (registrationType == RegistrationType.INDIVIDUAL
+                && playerId != null && !playerId.equals(registeredBy)) {
+            throw new ServiceException("Người chơi chỉ có thể tự đăng ký cá nhân.");
+        }
+    }
 
     @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
     public static class LineupItem {

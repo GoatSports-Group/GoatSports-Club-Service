@@ -5,7 +5,7 @@ import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.TournamentService;
 import iuh.fit.clubservice.domain.enums.*;
-import iuh.fit.clubservice.infrastructure.annotation.ApiMessage;
+import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.TournamentConverter;
 import iuh.fit.clubservice.presentation.request.*;
 import jakarta.validation.Valid;

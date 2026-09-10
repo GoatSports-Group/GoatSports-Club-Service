@@ -1,7 +1,7 @@
-package iuh.fit.clubservice.infrastructure;
+package iuh.fit.clubservice.presentation.advice;
 
 import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
-import iuh.fit.clubservice.infrastructure.annotation.ApiMessage;
+import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
@@ -43,12 +43,10 @@ public class ResponseCustom implements ResponseBodyAdvice<Object> {
 
         if (statusCode >= 400) {
             return body;
-        } else {
-            baseResponse.setData(body);
-            ApiMessage apiMessage = returnType.getMethodAnnotation(ApiMessage.class);
-            baseResponse.setMessage(apiMessage != null ? apiMessage.value() : "Success");
         }
-
+        baseResponse.setData(body);
+        ApiMessage apiMessage = returnType.getMethodAnnotation(ApiMessage.class);
+        baseResponse.setMessage(apiMessage != null ? apiMessage.value() : "Success");
         return baseResponse;
     }
 }

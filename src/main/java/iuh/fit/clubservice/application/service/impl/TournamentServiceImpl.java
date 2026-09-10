@@ -41,7 +41,7 @@ public class TournamentServiceImpl implements TournamentService {
     @Override
     @Transactional
     public TournamentResponseCommand createTournament(CreateTournamentCommand command) throws ServiceException {
-        validateDates(command);
+        command.validate();
         LocalDate today = LocalDate.now();
         TournamentStatus status = !today.isBefore(command.getRegistrationOpenDate())
                 && !today.isAfter(command.getRegistrationCloseDate())
@@ -83,7 +83,7 @@ public class TournamentServiceImpl implements TournamentService {
         if (occupied >= tournament.getMaxParticipants()) throw new ServiceException("Giải đấu đã đủ số lượng đăng ký.");
 
         RegistrationType type = command.getType() == null ? RegistrationType.INDIVIDUAL : command.getType();
-        validateRegistration(type, command);
+        command.validate(type);
         boolean paymentRequired = tournament.getEntryFee() != null && tournament.getEntryFee() > 0D;
         TournamentRegistration registration = registrationRepository.save(TournamentRegistration.builder()
                 .tournamentId(command.getTournamentId()).type(type)
@@ -172,12 +172,12 @@ public class TournamentServiceImpl implements TournamentService {
     @Override
     @Transactional
     public TournamentFixtureResponseCommand updateFixtureResult(UpdateFixtureResultCommand command) throws ServiceException {
+        command.validate();
         TournamentFixture fixture = fixtureRepository.findById(command.getFixtureId())
                 .orElseThrow(() -> new ServiceException("Không tìm thấy trận đấu."));
         Tournament tournament = requireTournament(fixture.getTournamentId());
         assertOrganizer(tournament, command.getActorUserId());
         if (fixture.getRegistration2Id() == null) throw new ServiceException("Trận đấu được miễn thi đấu không cần cập nhật tỷ số.");
-        if (command.getScore1() < 0 || command.getScore2() < 0) throw new ServiceException("Tỷ số không được âm.");
         fixture.setScore1(command.getScore1());
         fixture.setScore2(command.getScore2());
         fixture.setWinnerRegistrationId(command.getScore1().equals(command.getScore2()) ? null
@@ -232,26 +232,6 @@ public class TournamentServiceImpl implements TournamentService {
         return TournamentLineup.builder().registrationId(registrationId).playerId(item.getPlayerId())
                 .playerName(item.getPlayerName()).lineupRole(item.getLineupRole())
                 .shirtNumber(item.getShirtNumber()).build();
-    }
-
-    private void validateDates(CreateTournamentCommand c) throws ServiceException {
-        if (c.getRegistrationOpenDate() == null || c.getRegistrationCloseDate() == null
-                || c.getStartDate() == null || c.getEndDate() == null
-                || c.getRegistrationCloseDate().isBefore(c.getRegistrationOpenDate())
-                || c.getStartDate().isBefore(c.getRegistrationCloseDate())
-                || c.getEndDate().isBefore(c.getStartDate())) {
-            throw new ServiceException("Mốc thời gian giải đấu không hợp lệ.");
-        }
-        if (c.getMaxParticipants() != null && c.getMaxParticipants() < 2) {
-            throw new ServiceException("Giải đấu cần ít nhất 2 người hoặc đội.");
-        }
-    }
-
-    private void validateRegistration(RegistrationType type, RegisterTournamentTeamCommand c) throws ServiceException {
-        if (type == RegistrationType.CLUB && c.getClubId() == null) throw new ServiceException("Đăng ký theo câu lạc bộ cần clubId.");
-        if (type == RegistrationType.INDIVIDUAL && c.getPlayerId() != null && !c.getPlayerId().equals(c.getRegisteredBy())) {
-            throw new ServiceException("Người chơi chỉ có thể tự đăng ký cá nhân.");
-        }
     }
 
     private Tournament requireTournament(UUID id) throws ServiceException {

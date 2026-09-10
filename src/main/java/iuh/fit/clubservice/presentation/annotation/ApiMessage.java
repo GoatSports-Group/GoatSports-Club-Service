@@ -1,4 +1,4 @@
-package iuh.fit.clubservice.infrastructure.annotation;
+package iuh.fit.clubservice.presentation.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

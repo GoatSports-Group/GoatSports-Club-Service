@@ -7,6 +7,8 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -52,5 +54,5 @@ public class ClubMemberEntity extends BaseEntity {
 
     @OneToMany(mappedBy = "membership", fetch = FetchType.LAZY)
     @Builder.Default
-    private java.util.Set<ClubFeePaymentEntity> feePayments = new java.util.HashSet<>();
+    private Set<ClubFeePaymentEntity> feePayments = new HashSet<>();
 }

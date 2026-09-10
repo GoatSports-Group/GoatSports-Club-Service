@@ -146,11 +146,9 @@ public class ClubServiceImpl implements ClubService {
     @Override
     @Transactional
     public ClubActivityResponseCommand createClubActivity(CreateClubActivityCommand command) throws ServiceException {
+        command.validate();
         Club club = requireClub(command.getClubId());
         assertManager(club, command.getCreatorId());
-        if (command.getStartAt() == null || command.getEndAt() == null || !command.getEndAt().isAfter(command.getStartAt())) {
-            throw new ServiceException("Thời gian kết thúc phải sau thời gian bắt đầu.");
-        }
         return toResponse(activityRepository.save(ClubActivity.builder()
                 .clubId(command.getClubId())
                 .title(command.getTitle().trim())

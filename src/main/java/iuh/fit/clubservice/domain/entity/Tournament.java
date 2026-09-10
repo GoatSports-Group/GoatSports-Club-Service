@@ -8,6 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -30,5 +31,5 @@ public class Tournament extends BaseEntity {
     private LocalDate registrationCloseDate;
     private LocalDate startDate;
     private LocalDate endDate;
-    private java.util.List<String> rules;
+    private List<String> rules;
 }
