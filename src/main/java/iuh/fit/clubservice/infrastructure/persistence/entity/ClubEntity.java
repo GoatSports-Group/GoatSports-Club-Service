@@ -3,13 +3,10 @@ package iuh.fit.clubservice.infrastructure.persistence.entity;
 import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
 import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.domain.enums.SportType;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -71,18 +68,4 @@ public class ClubEntity extends BaseEntity {
     @Column(name = "win_rate", nullable = false)
     private Double winRate;
 
-    @JsonIgnore
-    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<ClubMemberEntity> members = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<ClubFeeEntity> fees = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "club", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<ClubActivityEntity> activities = new HashSet<>();
 }

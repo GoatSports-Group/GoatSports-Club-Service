@@ -14,11 +14,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * PLAT-04: đưa correlationId của request vào MDC để mọi dòng log của service
- * nối được vào cùng một trace xuyên Gateway -> service -> event -> audit.
- * Gateway luôn gắn sẵn header; sinh mới chỉ để phòng khi gọi trực tiếp service.
- */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {

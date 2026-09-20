@@ -9,9 +9,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -74,28 +72,4 @@ public class TournamentEntity extends BaseEntity {
     @Column(name = "rules", columnDefinition = "jsonb")
     private List<String> rules;
 
-    @JsonIgnore
-    @OneToMany(mappedBy = "tournament", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentRegistrationEntity> registrations = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "tournament", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentFixtureEntity> fixtures = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "tournament", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentVenueReservationEntity> reservations = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "tournament", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentEligibilityRuleEntity> eligibilityRules = new HashSet<>();
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "tournament", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentStandingEntity> standings = new HashSet<>();
 }

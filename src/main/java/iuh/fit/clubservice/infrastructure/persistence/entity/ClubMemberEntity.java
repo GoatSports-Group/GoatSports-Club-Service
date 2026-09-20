@@ -7,8 +7,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -27,10 +25,6 @@ public class ClubMemberEntity extends BaseEntity {
 
     @Column(name = "club_id", nullable = false)
     private UUID clubId;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "club_id", insertable = false, updatable = false)
-    private ClubEntity club;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -52,7 +46,4 @@ public class ClubMemberEntity extends BaseEntity {
     @Column(name = "responded_at")
     private LocalDateTime respondedAt;
 
-    @OneToMany(mappedBy = "membership", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<ClubFeePaymentEntity> feePayments = new HashSet<>();
 }

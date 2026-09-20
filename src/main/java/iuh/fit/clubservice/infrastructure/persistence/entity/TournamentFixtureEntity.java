@@ -24,10 +24,6 @@ public class TournamentFixtureEntity extends BaseEntity {
     @Column(name = "tournament_id", nullable = false)
     private UUID tournamentId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tournament_id", insertable = false, updatable = false)
-    private TournamentEntity tournament;
-
     @Column(name = "round_name")
     private String roundName;
 
@@ -40,16 +36,8 @@ public class TournamentFixtureEntity extends BaseEntity {
     @Column(name = "registration1_id")
     private UUID registration1Id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "registration1_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity registration1;
-
     @Column(name = "registration2_id")
     private UUID registration2Id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "registration2_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity registration2;
 
     @Column(name = "score1")
     private Integer score1;
@@ -60,23 +48,11 @@ public class TournamentFixtureEntity extends BaseEntity {
     @Column(name = "winner_registration_id")
     private UUID winnerRegistrationId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "winner_registration_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity winnerRegistration;
-
     @Column(name = "next_fixture_id")
     private UUID nextFixtureId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "next_fixture_id", insertable = false, updatable = false)
-    private TournamentFixtureEntity nextFixture;
-
     @Column(name = "reservation_id", unique = true)
     private UUID reservationId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reservation_id", insertable = false, updatable = false)
-    private TournamentVenueReservationEntity reservation;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

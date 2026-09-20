@@ -8,8 +8,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -29,19 +27,11 @@ public class TournamentRegistrationEntity extends BaseEntity {
     @Column(name = "tournament_id", nullable = false)
     private UUID tournamentId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tournament_id", insertable = false, updatable = false)
-    private TournamentEntity tournament;
-
     @Column(name = "player_id")
     private UUID playerId;
 
     @Column(name = "club_id")
     private UUID clubId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "club_id", insertable = false, updatable = false)
-    private ClubEntity club;
 
     @Column(name = "team_name")
     private String teamName;
@@ -70,13 +60,4 @@ public class TournamentRegistrationEntity extends BaseEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
-    @OneToMany(mappedBy = "registration", fetch = FetchType.LAZY)
-    @Builder.Default
-    private Set<TournamentLineupEntity> lineups = new HashSet<>();
-
-    @OneToOne(mappedBy = "registration", fetch = FetchType.LAZY)
-    private TournamentPaymentEntity payment;
-
-    @OneToOne(mappedBy = "registration", fetch = FetchType.LAZY)
-    private TournamentStandingEntity standing;
 }

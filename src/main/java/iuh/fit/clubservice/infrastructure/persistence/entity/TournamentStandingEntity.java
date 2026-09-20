@@ -22,16 +22,8 @@ public class TournamentStandingEntity extends BaseEntity {
     @Column(name = "tournament_id", nullable = false)
     private UUID tournamentId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tournament_id", insertable = false, updatable = false)
-    private TournamentEntity tournament;
-
     @Column(name = "registration_id", nullable = false, unique = true)
     private UUID registrationId;
-
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "registration_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity registration;
 
     @Column(name = "played", nullable = false)
     private Integer played;

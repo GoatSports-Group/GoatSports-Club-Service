@@ -25,10 +25,6 @@ public class TournamentVenueReservationEntity extends BaseEntity {
     @Column(name = "tournament_id", nullable = false)
     private UUID tournamentId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tournament_id", insertable = false, updatable = false)
-    private TournamentEntity tournament;
-
     @Column(name = "venue_id", nullable = false)
     private UUID venueId;
 
@@ -51,6 +47,4 @@ public class TournamentVenueReservationEntity extends BaseEntity {
     @Column(name = "status", nullable = false)
     private ReservationStatus status;
 
-    @OneToOne(mappedBy = "reservation", fetch = FetchType.LAZY)
-    private TournamentFixtureEntity fixture;
 }

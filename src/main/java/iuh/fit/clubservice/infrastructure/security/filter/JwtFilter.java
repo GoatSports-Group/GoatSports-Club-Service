@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Component
 public class JwtFilter extends OncePerRequestFilter {
-    @Value("${app.gateway.secret}") private String gatewaySecret;
+    @Value("${app.jwt.secret}") private String gatewaySecret;
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();

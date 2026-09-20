@@ -24,10 +24,6 @@ public class ClubActivityEntity extends BaseEntity {
     @Column(name = "club_id", nullable = false)
     private UUID clubId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "club_id", insertable = false, updatable = false)
-    private ClubEntity club;
-
     @Column(name = "title", nullable = false)
     private String title;
 

@@ -24,10 +24,6 @@ public class TournamentLineupEntity extends BaseEntity {
     @Column(name = "registration_id", nullable = false)
     private UUID registrationId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "registration_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity registration;
-
     @Column(name = "player_id", nullable = false)
     private UUID playerId;
 

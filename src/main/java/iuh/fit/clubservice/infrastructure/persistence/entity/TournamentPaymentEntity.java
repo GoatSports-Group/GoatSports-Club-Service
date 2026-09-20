@@ -24,10 +24,6 @@ public class TournamentPaymentEntity extends BaseEntity {
     @Column(name = "registration_id", nullable = false, unique = true)
     private UUID registrationId;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "registration_id", insertable = false, updatable = false)
-    private TournamentRegistrationEntity registration;
-
     @Column(name = "amount", nullable = false)
     private Double amount;
 

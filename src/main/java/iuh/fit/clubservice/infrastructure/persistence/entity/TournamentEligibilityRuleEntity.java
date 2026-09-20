@@ -24,10 +24,6 @@ public class TournamentEligibilityRuleEntity extends BaseEntity {
     @Column(name = "tournament_id", nullable = false)
     private UUID tournamentId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tournament_id", insertable = false, updatable = false)
-    private TournamentEntity tournament;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "rule_type", nullable = false)
     private EligibilityRuleType ruleType;
