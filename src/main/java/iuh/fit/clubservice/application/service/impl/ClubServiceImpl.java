@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,7 +95,11 @@ public class ClubServiceImpl implements ClubService {
         member.setRespondedAt(null);
         member.setRespondedBy(null);
         ClubMember saved = memberRepository.save(member);
-        if (saved.getStatus() == ClubMemberStatus.ACTIVE) syncConversation(club);
+        if (saved.getStatus() == ClubMemberStatus.ACTIVE) {
+            syncConversation(club);
+        } else {
+            eventPublisher.membershipRequested(club, saved, null, managerIds(club));
+        }
         return toResponse(saved);
     }
 
@@ -114,6 +119,8 @@ public class ClubServiceImpl implements ClubService {
         member.setRespondedAt(LocalDateTime.now());
         ClubMember saved = memberRepository.save(member);
         if (command.isAccepted()) syncConversation(club);
+        // Bi tu choi cung phai duoc bao, khong de nguoi ta cho mai.
+        eventPublisher.membershipResponded(club, saved, command.isAccepted());
         return toResponse(saved);
     }
 
@@ -180,6 +187,17 @@ public class ClubServiceImpl implements ClubService {
      * Day toan bo danh sach thanh vien dang hoat dong sang social-service.
      * Dong bo ca danh sach thay vi them/bot tung nguoi nen lan goi loi se tu khoi o lan doi thanh vien ke tiep.
      */
+    /** Chủ CLB và quản trị viên đang hoạt động — những người thực sự bấm được nút duyệt. */
+    private List<UUID> managerIds(Club club) {
+        List<UUID> managers = new ArrayList<>();
+        managers.add(club.getOwnerId());
+        memberRepository.findByClubIdAndStatus(club.getClubId(), ClubMemberStatus.ACTIVE).stream()
+                .filter(member -> member.getRole() == ClubRole.OWNER || member.getRole() == ClubRole.ADMIN)
+                .map(ClubMember::getUserId)
+                .forEach(managers::add);
+        return managers.stream().filter(java.util.Objects::nonNull).distinct().toList();
+    }
+
     private Club syncConversation(Club club) {
         conversationSync.sync(club, activeMemberIds(club.getClubId())).ifPresent(conversationId -> {
             if (!conversationId.equals(club.getConversationId())) {
@@ -309,6 +327,35 @@ public class ClubServiceImpl implements ClubService {
     }
 
     private String normalize(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+
+    @Override
+    public List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status) {
+        return memberRepository.findByUserIdAndStatus(userId, status).stream()
+                .map(member -> clubRepository.findById(member.getClubId())
+                        .map(club -> MyClubMembershipResponseCommand.builder()
+                                .membershipId(member.getMembershipId())
+                                .role(member.getRole())
+                                .status(member.getStatus())
+                                .joinedAt(member.getJoinedAt())
+                                .requestedAt(member.getCreatedAt())
+                                .club(toResponse(club))
+                                .build())
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    @Override
+    public List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit) {
+        List<UUID> clubIds = memberRepository.findByUserIdAndStatus(userId, ClubMemberStatus.ACTIVE).stream()
+                .map(ClubMember::getClubId)
+                .toList();
+        // Lay tu bay gio tro di: hoat dong da qua khong con de lam gi o man hinh "sap toi".
+        return activityRepository.findUpcomingByClubIds(clubIds, LocalDateTime.now()).stream()
+                .limit(limit <= 0 ? 10 : limit)
+                .map(this::toResponse)
+                .toList();
+    }
 
     private ClubResponseCommand toResponse(Club c) {
         return ClubResponseCommand.builder()

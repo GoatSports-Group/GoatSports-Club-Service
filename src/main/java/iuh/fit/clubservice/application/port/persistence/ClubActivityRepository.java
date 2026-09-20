@@ -8,7 +8,12 @@ import java.util.UUID;
 
 public interface ClubActivityRepository {
     ClubActivity save(ClubActivity activity);
+
     Optional<ClubActivity> findById(UUID activityId);
+
     List<ClubActivity> findByClubId(UUID clubId);
+
+    List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from);
+
     void deleteById(UUID activityId);
 }

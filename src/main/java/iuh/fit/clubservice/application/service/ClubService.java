@@ -9,7 +9,9 @@ import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
 import iuh.fit.clubservice.application.dto.response.ClubActivityResponseCommand;
 import iuh.fit.clubservice.application.dto.response.ClubMemberResponseCommand;
 import iuh.fit.clubservice.application.dto.response.ClubResponseCommand;
+import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
+import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
 import org.springframework.data.domain.Page;
@@ -20,6 +22,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ClubService {
+    List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status);
+
+    List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit);
+
     Page<ClubResponseCommand> searchClubs(SportType sportType, String keyword, Pageable pageable);
 
     ClubResponseCommand getClubDetails(UUID clubId) throws ServiceException;

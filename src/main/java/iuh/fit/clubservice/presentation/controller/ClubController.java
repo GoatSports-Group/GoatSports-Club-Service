@@ -6,6 +6,8 @@ import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.ClubService;
+import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
+import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.ClubConverter;
@@ -29,6 +31,22 @@ public class ClubController {
     public Page<ClubResponseCommand> search(@RequestParam(required = false) SportType sportType,
             @RequestParam(required = false) String keyword, Pageable pageable) {
         return clubService.searchClubs(sportType, keyword, pageable);
+    }
+
+    @GetMapping("/me") @ApiMessage("Lấy câu lạc bộ của bạn thành công")
+    public List<MyClubMembershipResponseCommand> myClubs() throws ServiceException {
+        return clubService.getMyMemberships(requireUser(), ClubMemberStatus.ACTIVE);
+    }
+
+    @GetMapping("/me/requests") @ApiMessage("Lấy yêu cầu tham gia đang chờ thành công")
+    public List<MyClubMembershipResponseCommand> myPendingRequests() throws ServiceException {
+        return clubService.getMyMemberships(requireUser(), ClubMemberStatus.PENDING);
+    }
+
+    @GetMapping("/me/activities") @ApiMessage("Lấy hoạt động sắp tới thành công")
+    public List<ClubActivityResponseCommand> myUpcomingActivities(
+            @RequestParam(defaultValue = "10") int limit) throws ServiceException {
+        return clubService.getMyUpcomingActivities(requireUser(), limit);
     }
 
     @GetMapping("/{clubId}") @ApiMessage("Lấy chi tiết câu lạc bộ thành công")

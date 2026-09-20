@@ -438,4 +438,65 @@ class ClubServiceImplTest {
         verify(eventPublisher).activityCreated(any(), any(), captor.capture());
         assertThat(captor.getValue()).isEmpty();
     }
+
+    // ---------- Thong bao realtime khi xin vao CLB ----------
+
+    @Test
+    @DisplayName("xin vào CLB duyệt tay thì báo cho chủ và quản trị viên, không báo cho chính mình")
+    void joinRequestNotifiesManagersOnly() throws ServiceException {
+        UUID adminUser = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
+        when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE)).thenReturn(List.of(
+                memberWithRole(UUID.randomUUID(), ownerId, ClubRole.OWNER),
+                memberWithRole(UUID.randomUUID(), adminUser, ClubRole.ADMIN),
+                memberWithRole(UUID.randomUUID(), UUID.randomUUID(), ClubRole.MEMBER)));
+
+        service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(memberUserId).build());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.forClass(List.class);
+        verify(eventPublisher).membershipRequested(any(), any(), any(), captor.capture());
+        assertThat(captor.getValue()).containsExactlyInAnyOrder(ownerId, adminUser);
+    }
+
+    @Test
+    @DisplayName("CLB tự động duyệt thì vào thẳng, không sinh yêu cầu chờ duyệt")
+    void autoApprovalSkipsRequestNotification() throws ServiceException {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
+        when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE)).thenReturn(List.of());
+
+        service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(memberUserId).build());
+
+        verify(eventPublisher, never()).membershipRequested(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("duyệt yêu cầu thì báo lại cho người xin vào")
+    void approvingNotifiesRequester() throws ServiceException {
+        ClubMember pending = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        pending.setStatus(ClubMemberStatus.PENDING);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(pending));
+
+        service.respondMembership(RespondClubMemberCommand.builder()
+                .membershipId(membershipId).actorUserId(ownerId).accepted(true).build());
+
+        verify(eventPublisher).membershipResponded(any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("từ chối yêu cầu cũng báo lại, không im lặng")
+    void rejectingNotifiesRequester() throws ServiceException {
+        ClubMember pending = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        pending.setStatus(ClubMemberStatus.PENDING);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(pending));
+
+        service.respondMembership(RespondClubMemberCommand.builder()
+                .membershipId(membershipId).actorUserId(ownerId).accepted(false).build());
+
+        verify(eventPublisher).membershipResponded(any(), any(), eq(false));
+    }
 }

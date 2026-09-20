@@ -36,6 +36,15 @@ public class ClubActivityRepositoryImpl implements ClubActivityRepository {
     }
 
     @Override
+    public List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from) {
+        if (clubIds == null || clubIds.isEmpty()) return List.of();
+        return jpaClubActivityRepository
+                .findByClubIdInAndStartAtGreaterThanEqualOrderByStartAtAsc(clubIds, from).stream()
+                .map(clubActivityEntityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void deleteById(UUID activityId) {
         jpaClubActivityRepository.deleteById(activityId);
     }
