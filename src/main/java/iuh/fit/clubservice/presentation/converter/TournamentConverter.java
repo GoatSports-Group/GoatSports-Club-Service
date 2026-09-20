@@ -13,8 +13,15 @@ public class TournamentConverter {
                 .description(request.getDescription()).sportType(request.getSportType()).format(request.getFormat())
                 .maxParticipants(request.getMaxParticipants()).entryFee(request.getEntryFee()).prizePool(request.getPrizePool())
                 .registrationOpenDate(request.getRegistrationOpenDate()).registrationCloseDate(request.getRegistrationCloseDate())
-                .startDate(request.getStartDate()).endDate(request.getEndDate()).rules(request.getRules()).build();
+                .startDate(request.getStartDate()).endDate(request.getEndDate()).rules(request.getRules())
+                .eligibilityRules(request.getEligibilityRules() == null ? List.of()
+                        : request.getEligibilityRules().stream()
+                        .map(item -> CreateTournamentCommand.EligibilityRuleItem.builder()
+                                .ruleType(item.getRuleType()).operator(item.getOperator())
+                                .expectedValue(item.getExpectedValue()).build()).toList())
+                .build();
     }
+
     public RegisterTournamentTeamCommand toCommand(UUID tournamentId, UUID registeredBy,
                                                     RegisterTournamentTeamRequest request) {
         List<RegisterTournamentTeamCommand.LineupItem> lineups = request.getLineups() == null ? List.of()
@@ -25,6 +32,15 @@ public class TournamentConverter {
                 .playerId(request.getPlayerId()).clubId(request.getClubId()).teamName(request.getTeamName())
                 .type(request.getType()).skillLevel(request.getSkillLevel()).lineups(lineups).build();
     }
+
+    public ReserveTournamentVenueCommand toCommand(UUID tournamentId, UUID actorId,
+                                                   ReserveTournamentVenueRequest request) {
+        return ReserveTournamentVenueCommand.builder().tournamentId(tournamentId).actorUserId(actorId)
+                .venueId(request.getVenueId()).courtId(request.getCourtId()).fixtureId(request.getFixtureId())
+                .playDate(request.getPlayDate()).startTime(request.getStartTime()).endTime(request.getEndTime())
+                .build();
+    }
+
     public UpdateFixtureResultCommand toCommand(UUID fixtureId, UUID actorId, UpdateFixtureResultRequest request) {
         return UpdateFixtureResultCommand.builder().fixtureId(fixtureId).actorUserId(actorId)
                 .score1(request.getScore1()).score2(request.getScore2()).build();

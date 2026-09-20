@@ -34,6 +34,11 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     }
 
     @Override
+    public Optional<Tournament> findByIdForUpdate(UUID tournamentId) {
+        return jpaTournamentRepository.findByIdForUpdate(tournamentId).map(tournamentEntityMapper::toDomain);
+    }
+
+    @Override
     public Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable) {
         Specification<TournamentEntity> specification = (root, query, criteriaBuilder) ->
                 criteriaBuilder.conjunction();

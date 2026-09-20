@@ -1,12 +1,17 @@
 package iuh.fit.clubservice.presentation.request;
 
 import iuh.fit.clubservice.domain.enums.*;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
 
-@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreateTournamentRequest {
     @NotBlank(message = "Tên giải đấu không được để trống") private String name;
     private String description;
@@ -20,4 +25,13 @@ public class CreateTournamentRequest {
     @NotNull private LocalDate startDate;
     @NotNull private LocalDate endDate;
     private List<String> rules;
+    @Valid private List<EligibilityRuleItem> eligibilityRules;
+
+    @Getter
+    @Setter
+    public static class EligibilityRuleItem {
+        @NotNull(message = "Loại điều kiện không được để trống") private EligibilityRuleType ruleType;
+        @NotNull(message = "Toán tử điều kiện không được để trống") private EligibilityRuleOperator operator;
+        @NotBlank(message = "Giá trị điều kiện không được để trống") private String expectedValue;
+    }
 }

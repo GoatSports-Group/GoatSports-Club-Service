@@ -2,7 +2,11 @@ package iuh.fit.clubservice.application.service.impl;
 
 import iuh.fit.clubservice.application.dto.request.*;
 import iuh.fit.clubservice.application.dto.response.*;
+import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
+import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
+import iuh.fit.clubservice.application.port.external.ClubConversationSync;
+import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
 import iuh.fit.clubservice.application.port.persistence.*;
 import iuh.fit.clubservice.application.service.ClubService;
 import iuh.fit.clubservice.domain.entity.*;
@@ -24,6 +28,8 @@ public class ClubServiceImpl implements ClubService {
     private final ClubRepository clubRepository;
     private final ClubMemberRepository memberRepository;
     private final ClubActivityRepository activityRepository;
+    private final ClubConversationSync conversationSync;
+    private final ClubEventPublisher eventPublisher;
 
     @Override
     public Page<ClubResponseCommand> searchClubs(SportType sportType, String keyword, Pageable pageable) {
@@ -57,7 +63,7 @@ public class ClubServiceImpl implements ClubService {
                 .status(ClubMemberStatus.ACTIVE)
                 .joinedAt(LocalDateTime.now())
                 .build());
-        return toResponse(club);
+        return toResponse(syncConversation(club));
     }
 
     @Override
@@ -87,7 +93,9 @@ public class ClubServiceImpl implements ClubService {
         member.setJoinedAt(status == ClubMemberStatus.ACTIVE ? LocalDateTime.now() : null);
         member.setRespondedAt(null);
         member.setRespondedBy(null);
-        return toResponse(memberRepository.save(member));
+        ClubMember saved = memberRepository.save(member);
+        if (saved.getStatus() == ClubMemberStatus.ACTIVE) syncConversation(club);
+        return toResponse(saved);
     }
 
     @Override
@@ -104,7 +112,9 @@ public class ClubServiceImpl implements ClubService {
         member.setJoinedAt(command.isAccepted() ? LocalDateTime.now() : null);
         member.setRespondedBy(command.getActorUserId());
         member.setRespondedAt(LocalDateTime.now());
-        return toResponse(memberRepository.save(member));
+        ClubMember saved = memberRepository.save(member);
+        if (command.isAccepted()) syncConversation(club);
+        return toResponse(saved);
     }
 
     @Override
@@ -121,6 +131,7 @@ public class ClubServiceImpl implements ClubService {
         member.setStatus(ClubMemberStatus.LEFT);
         member.setRespondedAt(LocalDateTime.now());
         memberRepository.save(member);
+        clubRepository.findById(clubId).ifPresent(this::syncConversation);
     }
 
     @Override
@@ -149,7 +160,7 @@ public class ClubServiceImpl implements ClubService {
         command.validate();
         Club club = requireClub(command.getClubId());
         assertManager(club, command.getCreatorId());
-        return toResponse(activityRepository.save(ClubActivity.builder()
+        ClubActivity activity = activityRepository.save(ClubActivity.builder()
                 .clubId(command.getClubId())
                 .title(command.getTitle().trim())
                 .description(command.getDescription())
@@ -157,7 +168,129 @@ public class ClubServiceImpl implements ClubService {
                 .startAt(command.getStartAt())
                 .endAt(command.getEndAt())
                 .createdByUserId(command.getCreatorId())
-                .build()));
+                .build());
+        // Nguoi tao khong can tu bao minh.
+        List<UUID> receivers = activeMemberIds(club.getClubId()).stream()
+                .filter(userId -> !userId.equals(command.getCreatorId())).toList();
+        eventPublisher.activityCreated(club, activity, receivers);
+        return toResponse(activity);
+    }
+
+    /**
+     * Day toan bo danh sach thanh vien dang hoat dong sang social-service.
+     * Dong bo ca danh sach thay vi them/bot tung nguoi nen lan goi loi se tu khoi o lan doi thanh vien ke tiep.
+     */
+    private Club syncConversation(Club club) {
+        conversationSync.sync(club, activeMemberIds(club.getClubId())).ifPresent(conversationId -> {
+            if (!conversationId.equals(club.getConversationId())) {
+                club.setConversationId(conversationId);
+                clubRepository.save(club);
+            }
+        });
+        return club;
+    }
+
+    @Override
+    @Transactional
+    public ClubResponseCommand updateClub(UpdateClubCommand command) throws ServiceException {
+        command.validate();
+        Club club = requireClub(command.getClubId());
+        assertManager(club, command.getActorUserId());
+        if (command.getName() != null) club.setName(command.getName().trim());
+        if (command.getDescription() != null) club.setDescription(command.getDescription());
+        if (command.getLogoUrl() != null) club.setLogoUrl(command.getLogoUrl());
+        if (command.getPrivacy() != null) club.setPrivacy(command.getPrivacy());
+        if (command.getApprovalMode() != null) club.setApprovalMode(command.getApprovalMode());
+        Club saved = clubRepository.save(club);
+        // Ten CLB doi thi ten chat nhom phai doi theo.
+        return toResponse(syncConversation(saved));
+    }
+
+    /** Chi chu CLB duoc phong hoac ha quyen; ADMIN tu phong ADMIN khac se lam quyen tran ra khong kiem soat. */
+    @Override
+    @Transactional
+    public ClubMemberResponseCommand changeMemberRole(UUID clubId, UUID membershipId, ClubRole role,
+                                                      UUID actorUserId) throws ServiceException {
+        Club club = requireClub(clubId);
+        if (!club.getOwnerId().equals(actorUserId)) {
+            throw new ServiceException("Chỉ chủ câu lạc bộ mới đổi được vai trò thành viên.");
+        }
+        if (role == ClubRole.OWNER) {
+            throw new ServiceException("Chuyển quyền sở hữu cần một luồng riêng, không đổi trực tiếp vai trò.");
+        }
+        ClubMember member = requireMember(clubId, membershipId);
+        if (member.getRole() == ClubRole.OWNER) {
+            throw new ServiceException("Không thể đổi vai trò của chủ câu lạc bộ.");
+        }
+        if (member.getStatus() != ClubMemberStatus.ACTIVE) {
+            throw new ServiceException("Chỉ đổi được vai trò của thành viên đang hoạt động.");
+        }
+        member.setRole(role);
+        return toResponse(memberRepository.save(member));
+    }
+
+    @Override
+    @Transactional
+    public void removeMember(UUID clubId, UUID membershipId, boolean ban, UUID actorUserId)
+            throws ServiceException {
+        Club club = requireClub(clubId);
+        assertManager(club, actorUserId);
+        ClubMember member = requireMember(clubId, membershipId);
+        if (member.getRole() == ClubRole.OWNER) {
+            throw new ServiceException("Không thể xóa chủ câu lạc bộ khỏi câu lạc bộ.");
+        }
+        if (member.getUserId().equals(actorUserId)) {
+            throw new ServiceException("Bạn hãy dùng chức năng rời câu lạc bộ cho chính mình.");
+        }
+        ClubMemberStatus target = ban ? ClubMemberStatus.BANNED : ClubMemberStatus.REMOVED;
+        if (member.getStatus() == target) return;
+        member.setStatus(target);
+        member.setRespondedBy(actorUserId);
+        member.setRespondedAt(LocalDateTime.now());
+        memberRepository.save(member);
+        syncConversation(club);
+    }
+
+    @Override
+    @Transactional
+    public ClubActivityResponseCommand updateClubActivity(UpdateClubActivityCommand command)
+            throws ServiceException {
+        command.validate();
+        Club club = requireClub(command.getClubId());
+        assertManager(club, command.getActorUserId());
+        ClubActivity activity = requireActivity(command.getClubId(), command.getActivityId());
+        activity.setTitle(command.getTitle().trim());
+        activity.setDescription(command.getDescription());
+        activity.setVenueId(command.getVenueId());
+        activity.setStartAt(command.getStartAt());
+        activity.setEndAt(command.getEndAt());
+        return toResponse(activityRepository.save(activity));
+    }
+
+    @Override
+    @Transactional
+    public void deleteClubActivity(UUID clubId, UUID activityId, UUID actorUserId) throws ServiceException {
+        Club club = requireClub(clubId);
+        assertManager(club, actorUserId);
+        requireActivity(clubId, activityId);
+        activityRepository.deleteById(activityId);
+    }
+
+    private List<UUID> activeMemberIds(UUID clubId) {
+        return memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE)
+                .stream().map(ClubMember::getUserId).toList();
+    }
+
+    private ClubMember requireMember(UUID clubId, UUID membershipId) throws ServiceException {
+        return memberRepository.findById(membershipId)
+                .filter(item -> item.getClubId().equals(clubId))
+                .orElseThrow(() -> new ServiceException("Không tìm thấy thành viên của câu lạc bộ."));
+    }
+
+    private ClubActivity requireActivity(UUID clubId, UUID activityId) throws ServiceException {
+        return activityRepository.findById(activityId)
+                .filter(item -> item.getClubId().equals(clubId))
+                .orElseThrow(() -> new ServiceException("Không tìm thấy hoạt động của câu lạc bộ."));
     }
 
     private Club requireClub(UUID clubId) throws ServiceException {

@@ -5,6 +5,7 @@ import iuh.fit.clubservice.application.exception.ServiceException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<BaseResponse<Object>> notFound(NoResourceFoundException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage(), "Đường dẫn không tồn tại");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<BaseResponse<Object>> conflict(DataIntegrityViolationException exception) {
+        log.warn("Vi phạm ràng buộc dữ liệu: {}", exception.getMostSpecificCause().getMessage());
+        return error(HttpStatus.CONFLICT,
+                "Thao tác này đã được thực hiện hoặc đang bị trùng, vui lòng tải lại trang.",
+                "Dữ liệu bị trùng");
     }
     @ExceptionHandler(Exception.class)
     ResponseEntity<BaseResponse<Object>> unexpected(Exception exception, HttpServletRequest request) {
