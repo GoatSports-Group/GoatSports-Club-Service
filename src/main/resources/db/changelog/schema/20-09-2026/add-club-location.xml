@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <changeSet id="1789918502323-26" author="HP">
+        <dropForeignKeyConstraint baseTableName="club_activities" constraintName="fk_club_activities_club"/>
+    </changeSet>
+    <changeSet id="1789918502323-27" author="HP">
+        <dropForeignKeyConstraint baseTableName="club_fee_payments" constraintName="fk_club_fee_payments_fee"/>
+    </changeSet>
+    <changeSet id="1789918502323-28" author="HP">
+        <dropForeignKeyConstraint baseTableName="club_fee_payments" constraintName="fk_club_fee_payments_membership"/>
+    </changeSet>
+    <changeSet id="1789918502323-29" author="HP">
+        <dropForeignKeyConstraint baseTableName="club_fees" constraintName="fk_club_fees_club"/>
+    </changeSet>
+    <changeSet id="1789918502323-30" author="HP">
+        <dropForeignKeyConstraint baseTableName="club_members" constraintName="fk_club_members_club"/>
+    </changeSet>
+    <changeSet id="1789918502323-31" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures" constraintName="fk_tournament_fixtures_next"/>
+    </changeSet>
+    <changeSet id="1789918502323-32" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures"
+                                  constraintName="fk_tournament_fixtures_registration1"/>
+    </changeSet>
+    <changeSet id="1789918502323-33" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures"
+                                  constraintName="fk_tournament_fixtures_registration2"/>
+    </changeSet>
+    <changeSet id="1789918502323-34" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures"
+                                  constraintName="fk_tournament_fixtures_reservation"/>
+    </changeSet>
+    <changeSet id="1789918502323-35" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures"
+                                  constraintName="fk_tournament_fixtures_tournament"/>
+    </changeSet>
+    <changeSet id="1789918502323-36" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_fixtures" constraintName="fk_tournament_fixtures_winner"/>
+    </changeSet>
+    <changeSet id="1789918502323-37" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_lineups"
+                                  constraintName="fk_tournament_lineups_registration"/>
+    </changeSet>
+    <changeSet id="1789918502323-38" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_payments"
+                                  constraintName="fk_tournament_payments_registration"/>
+    </changeSet>
+    <changeSet id="1789918502323-39" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_registrations"
+                                  constraintName="fk_tournament_registrations_club"/>
+    </changeSet>
+    <changeSet id="1789918502323-40" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_registrations"
+                                  constraintName="fk_tournament_registrations_tournament"/>
+    </changeSet>
+    <changeSet id="1789918502323-41" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_venue_reservations"
+                                  constraintName="fk_tournament_reservations_tournament"/>
+    </changeSet>
+    <changeSet id="1789918502323-42" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_eligibility_rules"
+                                  constraintName="fk_tournament_rules_tournament"/>
+    </changeSet>
+    <changeSet id="1789918502323-43" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_standings"
+                                  constraintName="fk_tournament_standings_registration"/>
+    </changeSet>
+    <changeSet id="1789918502323-44" author="HP">
+        <dropForeignKeyConstraint baseTableName="tournament_standings"
+                                  constraintName="fk_tournament_standings_tournament"/>
+    </changeSet>
+    <changeSet id="1789918502323-25" author="HP">
+        <addColumn tableName="clubs">
+            <column name="location" type="VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="1789918502323-46" author="HP">
+        <dropColumn columnName="applied_at" tableName="club_members"/>
+
+        <dropColumn columnName="intro_message" tableName="club_members"/>
+
+        <dropColumn columnName="left_at" tableName="club_members"/>
+
+        <dropColumn columnName="user_avatar" tableName="club_members"/>
+
+        <dropColumn columnName="user_name" tableName="club_members"/>
+
+        <dropColumn columnName="user_phone" tableName="club_members"/>
+    </changeSet>
+    <changeSet id="1789918502323-47" author="HP">
+        <dropColumn columnName="athlete_id_code" tableName="tournament_registrations"/>
+
+        <dropColumn columnName="club_name" tableName="tournament_registrations"/>
+
+        <dropColumn columnName="id_number" tableName="tournament_registrations"/>
+
+        <dropColumn columnName="payment_id" tableName="tournament_registrations"/>
+
+        <dropColumn columnName="player_name" tableName="tournament_registrations"/>
+
+        <dropColumn columnName="player_phone" tableName="tournament_registrations"/>
+    </changeSet>
+    <changeSet id="1789918502323-48" author="HP">
+        <dropColumn columnName="banner_url" tableName="tournaments"/>
+
+        <dropColumn columnName="current_participants" tableName="tournaments"/>
+
+        <dropColumn columnName="organizer_name" tableName="tournaments"/>
+
+        <dropColumn columnName="prize_info" tableName="tournaments"/>
+
+        <dropColumn columnName="venue_id" tableName="tournaments"/>
+
+        <dropColumn columnName="venue_name" tableName="tournaments"/>
+
+        <dropColumn columnName="entry_fee" tableName="tournaments"/>
+
+        <dropColumn columnName="prize_pool" tableName="tournaments"/>
+    </changeSet>
+    <changeSet id="1789918502323-50" author="HP">
+        <dropColumn columnName="court_name" tableName="tournament_fixtures"/>
+
+        <dropColumn columnName="scheduled_time" tableName="tournament_fixtures"/>
+
+        <dropColumn columnName="team1_name" tableName="tournament_fixtures"/>
+
+        <dropColumn columnName="team2_name" tableName="tournament_fixtures"/>
+    </changeSet>
+    <changeSet id="1789918502323-51" author="HP">
+        <dropColumn columnName="cover_url" tableName="clubs"/>
+
+        <dropColumn columnName="district" tableName="clubs"/>
+
+        <dropColumn columnName="max_members" tableName="clubs"/>
+
+        <dropColumn columnName="member_count" tableName="clubs"/>
+
+        <dropColumn columnName="membership_fee" tableName="clubs"/>
+
+        <dropColumn columnName="owner_name" tableName="clubs"/>
+
+        <dropColumn columnName="region" tableName="clubs"/>
+    </changeSet>
+    <changeSet id="1789918502323-52" author="HP">
+        <dropColumn columnName="current_participants" tableName="club_activities"/>
+
+        <dropColumn columnName="max_participants" tableName="club_activities"/>
+
+        <dropColumn columnName="status" tableName="club_activities"/>
+
+        <dropColumn columnName="venue_name" tableName="club_activities"/>
+    </changeSet>
+    <changeSet id="1789918502323-57" author="HP">
+        <dropColumn columnName="is_starter" tableName="tournament_lineups"/>
+
+        <dropColumn columnName="player_phone" tableName="tournament_lineups"/>
+    </changeSet>
+    <changeSet id="1789918502323-1" author="HP">
+        <modifyDataType columnName="approval_mode" newDataType="VARCHAR(255)" tableName="clubs"/>
+    </changeSet>
+    <changeSet id="1789918502323-2" author="HP">
+        <modifyDataType columnName="city" newDataType="VARCHAR(64)" tableName="clubs"/>
+    </changeSet>
+    <changeSet id="1789918502323-4" author="HP">
+        <addColumn tableName="tournaments">
+            <column name="entry_fee" type="DOUBLE"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="1789918502323-5" author="HP">
+        <modifyDataType columnName="format" newDataType="VARCHAR(255)" tableName="tournaments"/>
+    </changeSet>
+    <changeSet id="1789918502323-6" author="HP">
+        <modifyDataType columnName="lineup_role" newDataType="VARCHAR(255)" tableName="tournament_lineups"/>
+    </changeSet>
+    <changeSet id="1789918502323-7" author="HP">
+        <modifyDataType columnName="operator" newDataType="VARCHAR(255)" tableName="tournament_eligibility_rules"/>
+    </changeSet>
+    <changeSet id="1789918502323-8" author="HP">
+        <modifyDataType columnName="privacy" newDataType="VARCHAR(255)" tableName="clubs"/>
+    </changeSet>
+    <changeSet id="1789918502323-10" author="HP">
+        <addColumn tableName="tournaments">
+            <column name="prize_pool" type="DOUBLE"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="1789918502323-11" author="HP">
+        <modifyDataType columnName="role" newDataType="VARCHAR(255)" tableName="club_members"/>
+    </changeSet>
+    <changeSet id="1789918502323-12" author="HP">
+        <modifyDataType columnName="round_name" newDataType="VARCHAR(255)" tableName="tournament_fixtures"/>
+    </changeSet>
+    <changeSet id="1789918502323-13" author="HP">
+        <modifyDataType columnName="rule_type" newDataType="VARCHAR(255)" tableName="tournament_eligibility_rules"/>
+    </changeSet>
+    <changeSet id="1789918502323-14" author="HP">
+        <modifyDataType columnName="skill_level" newDataType="VARCHAR(255)" tableName="tournament_registrations"/>
+    </changeSet>
+    <changeSet id="1789918502323-15" author="HP">
+        <modifyDataType columnName="sport_type" newDataType="VARCHAR(255)" tableName="clubs"/>
+    </changeSet>
+    <changeSet id="1789918502323-16" author="HP">
+        <modifyDataType columnName="sport_type" newDataType="VARCHAR(255)" tableName="tournaments"/>
+    </changeSet>
+    <changeSet id="1789918502323-17" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="club_fee_payments"/>
+    </changeSet>
+    <changeSet id="1789918502323-18" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="club_members"/>
+    </changeSet>
+    <changeSet id="1789918502323-19" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="tournament_fixtures"/>
+    </changeSet>
+    <changeSet id="1789918502323-20" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="tournament_payments"/>
+    </changeSet>
+    <changeSet id="1789918502323-21" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="tournament_registrations"/>
+    </changeSet>
+    <changeSet id="1789918502323-22" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="tournament_venue_reservations"/>
+    </changeSet>
+    <changeSet id="1789918502323-23" author="HP">
+        <modifyDataType columnName="status" newDataType="VARCHAR(255)" tableName="tournaments"/>
+    </changeSet>
+    <changeSet id="1789918502323-24" author="HP">
+        <modifyDataType columnName="type" newDataType="VARCHAR(255)" tableName="tournament_registrations"/>
+    </changeSet>
+
+</databaseChangeLog>

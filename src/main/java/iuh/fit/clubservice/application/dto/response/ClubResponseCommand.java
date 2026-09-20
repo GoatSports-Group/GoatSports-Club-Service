@@ -12,6 +12,8 @@ public class ClubResponseCommand {
     private String name;
     private String description;
     private String logoUrl;
+    private String city;
+    private String location;
     private SportType sportType;
     private ClubPrivacy privacy;
     private ClubApprovalMode approvalMode;

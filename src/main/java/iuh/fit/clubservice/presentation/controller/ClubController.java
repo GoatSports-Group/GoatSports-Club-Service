@@ -29,8 +29,9 @@ public class ClubController {
 
     @GetMapping("/search") @ApiMessage("Lấy danh sách câu lạc bộ thành công")
     public Page<ClubResponseCommand> search(@RequestParam(required = false) SportType sportType,
+            @RequestParam(required = false) String city,
             @RequestParam(required = false) String keyword, Pageable pageable) {
-        return clubService.searchClubs(sportType, keyword, pageable);
+        return clubService.searchClubs(sportType, city, keyword, pageable);
     }
 
     @GetMapping("/me") @ApiMessage("Lấy câu lạc bộ của bạn thành công")

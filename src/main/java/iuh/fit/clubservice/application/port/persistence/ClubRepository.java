@@ -11,6 +11,6 @@ import java.util.UUID;
 public interface ClubRepository {
     Club save(Club club);
     Optional<Club> findById(UUID clubId);
-    Page<Club> searchClubs(SportType sportType, String keyword, Pageable pageable);
+    Page<Club> searchClubs(SportType sportType, String city, String keyword, Pageable pageable);
     void deleteById(UUID clubId);
 }

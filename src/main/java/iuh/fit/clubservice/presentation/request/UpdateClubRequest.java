@@ -16,6 +16,8 @@ public class UpdateClubRequest {
     @Size(max = 2000, message = "Mô tả tối đa 2000 ký tự")
     private String description;
     private String logoUrl;
+    private String city;
+    private String location;
     private ClubPrivacy privacy;
     private ClubApprovalMode approvalMode;
 }

@@ -18,6 +18,10 @@ public class Club extends BaseEntity {
     private String name;
     private String description;
     private String logoUrl;
+    /** Ma tinh/thanh de loc, vi du "ho-chi-minh". */
+    private String city;
+    /** Dong dia diem hien thi, vi du "Quan 7, TP. Ho Chi Minh". */
+    private String location;
     private SportType sportType;
     private UUID ownerId;
     private ClubApprovalMode approvalMode;

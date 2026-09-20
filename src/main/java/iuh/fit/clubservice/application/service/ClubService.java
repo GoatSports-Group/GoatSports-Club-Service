@@ -26,7 +26,7 @@ public interface ClubService {
 
     List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit);
 
-    Page<ClubResponseCommand> searchClubs(SportType sportType, String keyword, Pageable pageable);
+    Page<ClubResponseCommand> searchClubs(SportType sportType, String city, String keyword, Pageable pageable);
 
     ClubResponseCommand getClubDetails(UUID clubId) throws ServiceException;
 

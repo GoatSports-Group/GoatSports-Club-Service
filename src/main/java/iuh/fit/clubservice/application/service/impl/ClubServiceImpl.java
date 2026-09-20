@@ -33,8 +33,10 @@ public class ClubServiceImpl implements ClubService {
     private final ClubEventPublisher eventPublisher;
 
     @Override
-    public Page<ClubResponseCommand> searchClubs(SportType sportType, String keyword, Pageable pageable) {
-        return clubRepository.searchClubs(sportType, normalize(keyword), pageable).map(this::toResponse);
+    public Page<ClubResponseCommand> searchClubs(SportType sportType, String city, String keyword,
+                                                Pageable pageable) {
+        return clubRepository.searchClubs(sportType, normalize(city), normalize(keyword), pageable)
+                .map(this::toResponse);
     }
 
     @Override
@@ -50,6 +52,8 @@ public class ClubServiceImpl implements ClubService {
                 .name(command.getName().trim())
                 .description(command.getDescription())
                 .logoUrl(command.getLogoUrl())
+                .city(normalize(command.getCity()))
+                .location(normalize(command.getLocation()))
                 .sportType(command.getSportType())
                 .privacy(command.getPrivacy() == null ? ClubPrivacy.PUBLIC : command.getPrivacy())
                 .approvalMode(command.getApprovalMode() == null ? ClubApprovalMode.AUTO : command.getApprovalMode())
@@ -360,7 +364,8 @@ public class ClubServiceImpl implements ClubService {
     private ClubResponseCommand toResponse(Club c) {
         return ClubResponseCommand.builder()
                 .clubId(c.getClubId()).ownerId(c.getOwnerId()).name(c.getName()).description(c.getDescription())
-                .logoUrl(c.getLogoUrl()).sportType(c.getSportType()).privacy(c.getPrivacy())
+                .logoUrl(c.getLogoUrl()).city(c.getCity()).location(c.getLocation())
+                .sportType(c.getSportType()).privacy(c.getPrivacy())
                 .approvalMode(c.getApprovalMode()).conversationId(c.getConversationId()).active(c.getActive())
                 .winCount(c.getWinCount()).lossCount(c.getLossCount()).drawCount(c.getDrawCount())
                 .matchCount(c.getMatchCount()).winRate(c.getWinRate())

@@ -33,13 +33,18 @@ public class ClubRepositoryImpl implements ClubRepository {
     }
 
     @Override
-    public Page<Club> searchClubs(SportType sportType, String keyword, Pageable pageable) {
+    public Page<Club> searchClubs(SportType sportType, String city, String keyword, Pageable pageable) {
         Specification<ClubEntity> specification = (root, query, criteriaBuilder) ->
                 criteriaBuilder.isTrue(root.get("active"));
 
         if (sportType != null) {
             specification = specification.and((root, query, criteriaBuilder) ->
                     criteriaBuilder.equal(root.get("sportType"), sportType));
+        }
+
+        if (city != null && !city.isBlank()) {
+            specification = specification.and((root, query, criteriaBuilder) ->
+                    criteriaBuilder.equal(root.get("city"), city.trim()));
         }
 
         if (keyword != null && !keyword.isBlank()) {

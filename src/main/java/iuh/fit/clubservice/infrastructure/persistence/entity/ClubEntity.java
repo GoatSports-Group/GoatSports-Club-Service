@@ -32,6 +32,12 @@ public class ClubEntity extends BaseEntity {
     @Column(name = "logo_url", length = 1000)
     private String logoUrl;
 
+    @Column(name = "city", length = 64)
+    private String city;
+
+    @Column(name = "location")
+    private String location;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "sport_type", nullable = false)
     private SportType sportType;

@@ -60,6 +60,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     private record MemberSeed(String email, ClubRole role) {}
 
     private record ClubSeed(String name, String ownerEmail, SportType sportType, String description,
+                            String city, String location,
                             ClubPrivacy privacy, ClubApprovalMode approvalMode,
                             List<MemberSeed> members) {}
 
@@ -72,6 +73,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     private static final List<ClubSeed> CLUBS = List.of(
             new ClubSeed("CLB Bóng Đá Sài Gòn Phủi", HUY, SportType.FOOTBALL,
                     "Đá giao hữu sân 7 tối thứ 3 và thứ 6 hàng tuần tại Bình Thạnh. Ưu tiên anh em đi làm.",
+                    "ho-chi-minh", "Quận Bình Thạnh, TP. Hồ Chí Minh",
                     ClubPrivacy.PUBLIC, ClubApprovalMode.MANUAL,
                     List.of(new MemberSeed(HUY, ClubRole.OWNER),
                             new MemberSeed(TUNG, ClubRole.ADMIN),
@@ -80,6 +82,7 @@ public class DemoDataSeeder implements CommandLineRunner {
 
             new ClubSeed("CLB Cầu Lông Phú Nhuận", KHANH_LINH, SportType.BADMINTON,
                     "Sinh hoạt sáng thứ 7 và chủ nhật, có HLV hướng dẫn cho người mới.",
+                    "ho-chi-minh", "Quận Phú Nhuận, TP. Hồ Chí Minh",
                     ClubPrivacy.PUBLIC, ClubApprovalMode.AUTO,
                     List.of(new MemberSeed(KHANH_LINH, ClubRole.OWNER),
                             new MemberSeed(THU_TRANG, ClubRole.MEMBER),
@@ -132,11 +135,11 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private int insertClub(ClubSeed seed) {
         return entityManager.createNativeQuery("""
-                        insert into clubs (club_id, name, description, sport_type, owner_id,
+                        insert into clubs (club_id, name, description, sport_type, owner_id, city, location,
                                            approval_mode, privacy, conversation_id, active,
                                            win_count, loss_count, draw_count, match_count, win_rate,
                                            created_at, created_by, updated_at, updated_by)
-                        select :clubId, :name, :description, :sportType, :ownerId,
+                        select :clubId, :name, :description, :sportType, :ownerId, :city, :location,
                                :approvalMode, :privacy, :conversationId, true,
                                0, 0, 0, 0, 0,
                                now(), 'demo-seed', now(), 'demo-seed'
@@ -146,6 +149,8 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("name", seed.name())
                 .setParameter("description", seed.description())
                 .setParameter("sportType", seed.sportType().name())
+                .setParameter("city", seed.city())
+                .setParameter("location", seed.location())
                 .setParameter("ownerId", userId(seed.ownerEmail()))
                 .setParameter("approvalMode", seed.approvalMode().name())
                 .setParameter("privacy", seed.privacy().name())
