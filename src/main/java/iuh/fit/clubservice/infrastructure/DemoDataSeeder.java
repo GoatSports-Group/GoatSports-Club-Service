@@ -133,11 +133,11 @@ public class DemoDataSeeder implements CommandLineRunner {
     private int insertClub(ClubSeed seed) {
         return entityManager.createNativeQuery("""
                         insert into clubs (club_id, name, description, sport_type, owner_id,
-                                           approval_mode, privacy, active,
+                                           approval_mode, privacy, conversation_id, active,
                                            win_count, loss_count, draw_count, match_count, win_rate,
                                            created_at, created_by, updated_at, updated_by)
                         select :clubId, :name, :description, :sportType, :ownerId,
-                               :approvalMode, :privacy, true,
+                               :approvalMode, :privacy, :conversationId, true,
                                0, 0, 0, 0, 0,
                                now(), 'demo-seed', now(), 'demo-seed'
                         where not exists (select 1 from clubs where club_id = :clubId)
@@ -149,6 +149,8 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("ownerId", userId(seed.ownerEmail()))
                 .setParameter("approvalMode", seed.approvalMode().name())
                 .setParameter("privacy", seed.privacy().name())
+                // Cung quy uoc voi social-service nen CLB tro dung toi nhom chat da seed ben do.
+                .setParameter("conversationId", id("conversation", id("club", seed.name()).toString()))
                 .executeUpdate();
     }
 
