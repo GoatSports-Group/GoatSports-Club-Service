@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
+import iuh.fit.clubservice.domain.entity.ClubInvitation;
 import iuh.fit.clubservice.domain.entity.ClubMember;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -67,6 +68,25 @@ public class ClubEventKafkaPublisher implements ClubEventPublisher {
                 : "club.membership.rejected.v1";
         emit(eventType, club, member.getUserId(), member.getRespondedBy(), payload ->
                 payload.put("membershipId", member.getMembershipId().toString()));
+    }
+
+    @Override
+    public void invitationSent(Club club, ClubInvitation invitation) {
+        emit("club.invitation.sent.v1", club, invitation.getInviteeId(), invitation.getInvitedBy(), payload -> {
+            payload.put("invitationId", invitation.getInvitationId().toString());
+            payload.put("message", invitation.getMessage() == null ? "" : invitation.getMessage());
+        });
+    }
+
+    @Override
+    public void invitationAnswered(Club club, ClubInvitation invitation, boolean accepted) {
+        String eventType = accepted
+                ? "club.invitation.accepted.v1"
+                : "club.invitation.declined.v1";
+        emit(eventType, club, invitation.getInvitedBy(), invitation.getInviteeId(), payload -> {
+            payload.put("invitationId", invitation.getInvitationId().toString());
+            payload.put("inviteeId", invitation.getInviteeId().toString());
+        });
     }
 
     private void emit(String eventType, Club club, UUID receiverId, UUID actorId,

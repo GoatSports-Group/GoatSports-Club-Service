@@ -29,6 +29,7 @@ public class ClubServiceImpl implements ClubService {
     private final ClubRepository clubRepository;
     private final ClubMemberRepository memberRepository;
     private final ClubActivityRepository activityRepository;
+    private final ClubInvitationRepository invitationRepository;
     private final ClubConversationSync conversationSync;
     private final ClubEventPublisher eventPublisher;
 
@@ -359,6 +360,121 @@ public class ClubServiceImpl implements ClubService {
                 .limit(limit <= 0 ? 10 : limit)
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public ClubInvitationResponseCommand inviteMember(UUID clubId, UUID inviteeId, String message,
+                                                      UUID actorUserId) throws ServiceException {
+        Club club = requireClub(clubId);
+        assertManager(club, actorUserId);
+        if (inviteeId == null) throw new ServiceException("Thiếu người được mời.");
+        if (inviteeId.equals(actorUserId)) throw new ServiceException("Không thể tự mời chính mình.");
+
+        ClubMember existing = memberRepository.findByClubIdAndUserId(clubId, inviteeId).orElse(null);
+        if (existing != null) {
+            if (existing.getStatus() == ClubMemberStatus.ACTIVE) {
+                throw new ServiceException("Người này đã là thành viên của câu lạc bộ.");
+            }
+            if (existing.getStatus() == ClubMemberStatus.PENDING) {
+                throw new ServiceException("Người này đang có yêu cầu tham gia chờ duyệt.");
+            }
+            if (existing.getStatus() == ClubMemberStatus.BANNED) {
+                throw new ServiceException("Người này đang bị cấm tham gia câu lạc bộ.");
+            }
+        }
+        // Moi lai sau khi bi tu choi thi duoc, nhung khong gui hai loi moi cung luc.
+        if (invitationRepository.findByClubIdAndInviteeIdAndStatus(
+                clubId, inviteeId, ClubInvitationStatus.PENDING).isPresent()) {
+            throw new ServiceException("Đã có lời mời đang chờ người này trả lời.");
+        }
+
+        ClubInvitation invitation = invitationRepository.save(ClubInvitation.builder()
+                .clubId(clubId)
+                .inviteeId(inviteeId)
+                .invitedBy(actorUserId)
+                .status(ClubInvitationStatus.PENDING)
+                .message(normalize(message))
+                .build());
+        eventPublisher.invitationSent(club, invitation);
+        return toResponse(invitation, club);
+    }
+
+    @Override
+    public List<ClubInvitationResponseCommand> getMyInvitations(UUID userId) {
+        return invitationRepository.findByInviteeIdAndStatus(userId, ClubInvitationStatus.PENDING).stream()
+                .map(invitation -> clubRepository.findById(invitation.getClubId())
+                        .map(club -> toResponse(invitation, club))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ClubMemberResponseCommand acceptInvitation(UUID invitationId, UUID userId) throws ServiceException {
+        ClubInvitation invitation = requirePendingInvitation(invitationId, userId);
+        Club club = requireClub(invitation.getClubId());
+
+        ClubMember member = memberRepository.findByClubIdAndUserId(club.getClubId(), userId)
+                .orElseGet(ClubMember::new);
+        if (member.getStatus() == ClubMemberStatus.BANNED) {
+            throw new ServiceException("Bạn đã bị cấm tham gia câu lạc bộ này.");
+        }
+        member.setClubId(club.getClubId());
+        member.setUserId(userId);
+        member.setRole(ClubRole.MEMBER);
+        // Chinh CLB da moi nen khong bat cho duyet them mot vong nua.
+        member.setStatus(ClubMemberStatus.ACTIVE);
+        member.setJoinedAt(LocalDateTime.now());
+        member.setRespondedBy(invitation.getInvitedBy());
+        member.setRespondedAt(LocalDateTime.now());
+        ClubMember saved = memberRepository.save(member);
+
+        closeInvitation(invitation, ClubInvitationStatus.ACCEPTED);
+        syncConversation(club);
+        eventPublisher.invitationAnswered(club, invitation, true);
+        return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void declineInvitation(UUID invitationId, UUID userId) throws ServiceException {
+        ClubInvitation invitation = requirePendingInvitation(invitationId, userId);
+        closeInvitation(invitation, ClubInvitationStatus.DECLINED);
+        clubRepository.findById(invitation.getClubId())
+                .ifPresent(club -> eventPublisher.invitationAnswered(club, invitation, false));
+    }
+
+    private ClubInvitation requirePendingInvitation(UUID invitationId, UUID userId) throws ServiceException {
+        ClubInvitation invitation = invitationRepository.findById(invitationId)
+                .orElseThrow(() -> new ServiceException("Không tìm thấy lời mời."));
+        if (!invitation.getInviteeId().equals(userId)) {
+            throw new ServiceException("Lời mời này không dành cho bạn.");
+        }
+        if (invitation.getStatus() != ClubInvitationStatus.PENDING) {
+            throw new ServiceException("Lời mời đã được xử lý.");
+        }
+        return invitation;
+    }
+
+    private void closeInvitation(ClubInvitation invitation, ClubInvitationStatus status) {
+        invitation.setStatus(status);
+        invitation.setRespondedAt(LocalDateTime.now());
+        invitationRepository.save(invitation);
+    }
+
+    private ClubInvitationResponseCommand toResponse(ClubInvitation invitation, Club club) {
+        return ClubInvitationResponseCommand.builder()
+                .invitationId(invitation.getInvitationId())
+                .inviteeId(invitation.getInviteeId())
+                .invitedBy(invitation.getInvitedBy())
+                .status(invitation.getStatus())
+                .message(invitation.getMessage())
+                .createdAt(invitation.getCreatedAt())
+                .respondedAt(invitation.getRespondedAt())
+                .club(toResponse(club))
+                .build();
     }
 
     private ClubResponseCommand toResponse(Club c) {

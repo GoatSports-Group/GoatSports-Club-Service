@@ -10,12 +10,15 @@ import iuh.fit.clubservice.application.dto.request.CreateClubActivityCommand;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
 import iuh.fit.clubservice.application.port.persistence.ClubActivityRepository;
+import iuh.fit.clubservice.application.port.persistence.ClubInvitationRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
+import iuh.fit.clubservice.domain.entity.ClubInvitation;
 import iuh.fit.clubservice.domain.entity.ClubMember;
 import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
+import iuh.fit.clubservice.domain.enums.ClubInvitationStatus;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
@@ -49,6 +52,7 @@ class ClubServiceImplTest {
     @Mock private ClubRepository clubRepository;
     @Mock private ClubMemberRepository memberRepository;
     @Mock private ClubActivityRepository activityRepository;
+    @Mock private ClubInvitationRepository invitationRepository;
     @Mock private ClubConversationSync conversationSync;
     @Mock private ClubEventPublisher eventPublisher;
 
@@ -62,8 +66,10 @@ class ClubServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClubServiceImpl(clubRepository, memberRepository, activityRepository,
-                conversationSync, eventPublisher);
+        service = new ClubServiceImpl(
+                clubRepository, memberRepository, activityRepository,
+                invitationRepository, conversationSync, eventPublisher
+        );
 
         when(clubRepository.save(any())).thenAnswer(call -> {
             Club club = call.getArgument(0);
@@ -498,5 +504,114 @@ class ClubServiceImplTest {
                 .membershipId(membershipId).actorUserId(ownerId).accepted(false).build());
 
         verify(eventPublisher).membershipResponded(any(), any(), eq(false));
+    }
+
+    // ---------- Loi moi vao CLB ----------
+
+    private ClubInvitation pendingInvitation(UUID invitationId, UUID invitee, UUID invitedBy) {
+        return ClubInvitation.builder()
+                .invitationId(invitationId).clubId(clubId).inviteeId(invitee).invitedBy(invitedBy)
+                .status(ClubInvitationStatus.PENDING).build();
+    }
+
+    @Test
+    @DisplayName("chủ CLB mời được người ngoài và người đó nhận thông báo")
+    void ownerCanInviteOutsider() throws ServiceException {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
+        when(invitationRepository.findByClubIdAndInviteeIdAndStatus(
+                clubId, memberUserId, ClubInvitationStatus.PENDING)).thenReturn(Optional.empty());
+        when(invitationRepository.save(any())).thenAnswer(call -> {
+            ClubInvitation saved = call.getArgument(0);
+            if (saved.getInvitationId() == null) saved.setInvitationId(UUID.randomUUID());
+            return saved;
+        });
+
+        var response = service.inviteMember(clubId, memberUserId, "Vào đá với anh em nhé", ownerId);
+
+        assertThat(response.getStatus()).isEqualTo(ClubInvitationStatus.PENDING);
+        verify(eventPublisher).invitationSent(any(), any());
+    }
+
+    @Test
+    @DisplayName("thành viên thường không mời được ai")
+    void plainMemberCannotInvite() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.of(
+                memberWithRole(membershipId, memberUserId, ClubRole.MEMBER)));
+
+        assertThatThrownBy(() -> service.inviteMember(clubId, UUID.randomUUID(), null, memberUserId))
+                .isInstanceOf(ServiceException.class);
+    }
+
+    @Test
+    @DisplayName("không mời người đã là thành viên")
+    void cannotInviteExistingMember() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.of(
+                memberWithRole(membershipId, memberUserId, ClubRole.MEMBER)));
+
+        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("đã là thành viên");
+    }
+
+    @Test
+    @DisplayName("không gửi hai lời mời cùng lúc cho một người")
+    void cannotSendTwoPendingInvitations() {
+        UUID invitationId = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
+        when(invitationRepository.findByClubIdAndInviteeIdAndStatus(
+                clubId, memberUserId, ClubInvitationStatus.PENDING))
+                .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
+
+        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("đang chờ");
+    }
+
+    @Test
+    @DisplayName("nhận lời mời thì vào thẳng CLB, không phải chờ duyệt lần nữa")
+    void acceptingInvitationJoinsWithoutApproval() throws ServiceException {
+        UUID invitationId = UUID.randomUUID();
+        when(invitationRepository.findById(invitationId))
+                .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
+        when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        var response = service.acceptInvitation(invitationId, memberUserId);
+
+        assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
+        verify(conversationSync).sync(any(), any());
+        verify(eventPublisher).invitationAnswered(any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("từ chối lời mời thì không tạo thành viên nào")
+    void decliningInvitationCreatesNoMember() throws ServiceException {
+        UUID invitationId = UUID.randomUUID();
+        when(invitationRepository.findById(invitationId))
+                .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        service.declineInvitation(invitationId, memberUserId);
+
+        verify(memberRepository, never()).save(any());
+        verify(eventPublisher).invitationAnswered(any(), any(), eq(false));
+    }
+
+    @Test
+    @DisplayName("không trả lời hộ lời mời của người khác")
+    void cannotAnswerSomeoneElsesInvitation() {
+        UUID invitationId = UUID.randomUUID();
+        when(invitationRepository.findById(invitationId))
+                .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
+
+        assertThatThrownBy(() -> service.acceptInvitation(invitationId, UUID.randomUUID()))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("không dành cho bạn");
     }
 }

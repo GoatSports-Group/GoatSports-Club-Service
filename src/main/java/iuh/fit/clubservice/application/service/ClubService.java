@@ -6,10 +6,7 @@ import iuh.fit.clubservice.application.dto.request.JoinClubCommand;
 import iuh.fit.clubservice.application.dto.request.RespondClubMemberCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
-import iuh.fit.clubservice.application.dto.response.ClubActivityResponseCommand;
-import iuh.fit.clubservice.application.dto.response.ClubMemberResponseCommand;
-import iuh.fit.clubservice.application.dto.response.ClubResponseCommand;
-import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
+import iuh.fit.clubservice.application.dto.response.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
@@ -22,6 +19,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ClubService {
+    ClubInvitationResponseCommand inviteMember(UUID clubID, UUID inviteeId, String message, UUID actorUserId) throws ServiceException;
+
+    List<ClubInvitationResponseCommand> getMyInvitations(UUID userId);
+
+    ClubMemberResponseCommand acceptInvitation(UUID invitationId, UUID userId) throws ServiceException;
+
+    void declineInvitation(UUID invitationId, UUID userId) throws ServiceException;
+
     List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status);
 
     List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit);

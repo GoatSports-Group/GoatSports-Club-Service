@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+>
+    <!--
+        Lời mời vào CLB: ban quản trị chủ động mời, khác với club_members là người chơi tự xin vào.
+        Hai chiều ngược nhau nên tách bảng, không nhét chung vào club_members với một cờ.
+
+        Unique (club_id, invitee_id) chỉ áp cho lời mời đang chờ: mời lại sau khi bị từ chối
+        là chuyện bình thường, nên dùng partial index thay vì unique constraint thường.
+    -->
+    <changeSet id="20-09-2026-add-club-invitations" author="goatsports">
+        <createTable tableName="club_invitations">
+            <column name="invitation_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_club_invitations"/>
+            </column>
+            <column name="club_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invitee_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invited_by" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="VARCHAR(500)"/>
+            <column name="responded_at" type="DATETIME"/>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createIndex tableName="club_invitations" indexName="idx_club_invitations_invitee">
+            <column name="invitee_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="club_invitations" indexName="idx_club_invitations_club">
+            <column name="club_id"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20-09-2026-club-invitations-unique-pending" author="goatsports">
+        <sql>
+            CREATE UNIQUE INDEX uk_club_invitations_pending
+            ON club_invitations (club_id, invitee_id)
+            WHERE status = 'PENDING';
+        </sql>
+        <rollback>
+            DROP INDEX IF EXISTS uk_club_invitations_pending;
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

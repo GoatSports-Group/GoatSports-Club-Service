@@ -8,6 +8,8 @@ import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.ClubService;
 import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
+import iuh.fit.clubservice.application.dto.response.ClubInvitationResponseCommand;
+import iuh.fit.clubservice.presentation.request.InviteClubMemberRequest;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.ClubConverter;
@@ -42,6 +44,28 @@ public class ClubController {
     @GetMapping("/me/requests") @ApiMessage("Lấy yêu cầu tham gia đang chờ thành công")
     public List<MyClubMembershipResponseCommand> myPendingRequests() throws ServiceException {
         return clubService.getMyMemberships(requireUser(), ClubMemberStatus.PENDING);
+    }
+
+    @GetMapping("/me/invitations") @ApiMessage("Lấy lời mời vào câu lạc bộ thành công")
+    public List<ClubInvitationResponseCommand> myInvitations() throws ServiceException {
+        return clubService.getMyInvitations(requireUser());
+    }
+
+    @PostMapping("/{clubId}/invitations") @ResponseStatus(HttpStatus.CREATED)
+    @ApiMessage("Gửi lời mời thành công")
+    public ClubInvitationResponseCommand invite(@PathVariable UUID clubId,
+            @Valid @RequestBody InviteClubMemberRequest request) throws ServiceException {
+        return clubService.inviteMember(clubId, request.getInviteeId(), request.getMessage(), requireUser());
+    }
+
+    @PostMapping("/invitations/{invitationId}/accept") @ApiMessage("Đã tham gia câu lạc bộ")
+    public ClubMemberResponseCommand acceptInvitation(@PathVariable UUID invitationId) throws ServiceException {
+        return clubService.acceptInvitation(invitationId, requireUser());
+    }
+
+    @PostMapping("/invitations/{invitationId}/decline") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void declineInvitation(@PathVariable UUID invitationId) throws ServiceException {
+        clubService.declineInvitation(invitationId, requireUser());
     }
 
     @GetMapping("/me/activities") @ApiMessage("Lấy hoạt động sắp tới thành công")

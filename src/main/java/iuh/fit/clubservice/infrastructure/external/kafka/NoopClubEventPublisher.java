@@ -3,6 +3,7 @@ package iuh.fit.clubservice.infrastructure.external.kafka;
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
+import iuh.fit.clubservice.domain.entity.ClubInvitation;
 import iuh.fit.clubservice.domain.entity.ClubMember;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,14 @@ public class NoopClubEventPublisher {
             @Override
             public void membershipRequested(Club club, ClubMember member, String requesterName,
                                             List<UUID> managerIds) {
+            }
+
+            @Override
+            public void invitationSent(Club club, ClubInvitation invitation) {
+            }
+
+            @Override
+            public void invitationAnswered(Club club, ClubInvitation invitation, boolean accepted) {
             }
 
             @Override
