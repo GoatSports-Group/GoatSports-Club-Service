@@ -32,6 +32,9 @@ public class ClubServiceImpl implements ClubService {
     private final ClubMemberRepository memberRepository;
     private final ClubActivityRepository activityRepository;
     private final ClubInvitationRepository invitationRepository;
+    private final TournamentRegistrationRepository tournamentRegistrationRepository;
+    private final TournamentFixtureRepository tournamentFixtureRepository;
+    private final TournamentRepository tournamentRepository;
     private final ClubConversationSync conversationSync;
     private final ClubEventPublisher eventPublisher;
 
@@ -162,6 +165,18 @@ public class ClubServiceImpl implements ClubService {
     }
 
     @Override
+    public Page<ClubMemberResponseCommand> getClubMembersPage(UUID clubId, UUID requesterId,
+            ClubMemberStatus status, Pageable pageable) throws ServiceException {
+        Club club = requireClub(clubId);
+        ClubMemberStatus requestedStatus = status == null ? ClubMemberStatus.ACTIVE : status;
+        if (requestedStatus != ClubMemberStatus.ACTIVE
+                && (requesterId == null || !isManager(club, requesterId))) {
+            throw new ServiceException("Chỉ ban quản trị mới có thể xem các yêu cầu tham gia.");
+        }
+        return memberRepository.findByClubIdAndStatus(clubId, requestedStatus, pageable).map(this::toResponse);
+    }
+
+    @Override
     public Optional<ClubMemberResponseCommand> getMembership(UUID clubId, UUID userId) {
         return memberRepository.findByClubIdAndUserId(clubId, userId).map(this::toResponse);
     }
@@ -169,6 +184,60 @@ public class ClubServiceImpl implements ClubService {
     @Override
     public List<ClubActivityResponseCommand> getClubActivities(UUID clubId) {
         return activityRepository.findByClubId(clubId).stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    public Page<ClubActivityResponseCommand> getClubActivitiesPage(UUID clubId, Pageable pageable) {
+        return activityRepository.findUpcomingByClubId(clubId, LocalDateTime.now(), pageable)
+                .map(this::toResponse);
+    }
+
+    @Override
+    public List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit)
+            throws ServiceException {
+        requireClub(clubId);
+        int safeLimit = Math.max(1, Math.min(limit, 20));
+        List<ClubRecentMatchResponseCommand> matches = new ArrayList<>();
+        for (TournamentRegistration clubRegistration : tournamentRegistrationRepository.findByClubId(clubId)) {
+            for (TournamentFixture fixture : tournamentFixtureRepository
+                    .findByTournamentId(clubRegistration.getTournamentId())) {
+                if (fixture.getStatus() != MatchStatus.COMPLETED
+                        || fixture.getScore1() == null || fixture.getScore2() == null) continue;
+                boolean clubIsFirst = clubRegistration.getRegistrationId().equals(fixture.getRegistration1Id());
+                boolean clubIsSecond = clubRegistration.getRegistrationId().equals(fixture.getRegistration2Id());
+                if (!clubIsFirst && !clubIsSecond) continue;
+
+                UUID opponentRegistrationId = clubIsFirst
+                        ? fixture.getRegistration2Id() : fixture.getRegistration1Id();
+                String opponentName = opponentRegistrationId == null ? "Đối thủ chờ xác định"
+                        : tournamentRegistrationRepository.findById(opponentRegistrationId)
+                        .map(TournamentRegistration::getTeamName)
+                        .filter(name -> name != null && !name.isBlank())
+                        .orElse("Đội bạn");
+                int clubScore = clubIsFirst ? fixture.getScore1() : fixture.getScore2();
+                int opponentScore = clubIsFirst ? fixture.getScore2() : fixture.getScore1();
+                String result = clubScore > opponentScore ? "WIN" : clubScore < opponentScore ? "LOSS" : "DRAW";
+                LocalDateTime playedAt = fixture.getCreatedAt() != null
+                        ? fixture.getCreatedAt() : fixture.getUpdatedAt();
+                String tournamentName = tournamentRepository.findById(fixture.getTournamentId())
+                        .map(Tournament::getName).orElse("Giải đấu GOAT Sports");
+                matches.add(ClubRecentMatchResponseCommand.builder()
+                        .matchId(fixture.getFixtureId())
+                        .tournamentId(fixture.getTournamentId())
+                        .tournamentName(tournamentName)
+                        .opponentName(opponentName)
+                        .playedAt(playedAt)
+                        .clubScore(clubScore)
+                        .opponentScore(opponentScore)
+                        .result(result)
+                        .build());
+            }
+        }
+        return matches.stream()
+                .sorted(java.util.Comparator.comparing(ClubRecentMatchResponseCommand::getPlayedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .limit(safeLimit)
+                .toList();
     }
 
     @Override
@@ -381,6 +450,15 @@ public class ClubServiceImpl implements ClubService {
     }
 
     @Override
+    public Page<ClubActivityResponseCommand> getMyUpcomingActivitiesPage(UUID userId, Pageable pageable) {
+        List<UUID> clubIds = memberRepository.findByUserIdAndStatus(userId, ClubMemberStatus.ACTIVE).stream()
+                .map(ClubMember::getClubId)
+                .toList();
+        return activityRepository.findUpcomingByClubIds(clubIds, LocalDateTime.now(), pageable)
+                .map(this::toResponse);
+    }
+
+    @Override
     @Transactional
     public ClubInvitationResponseCommand inviteMember(UUID clubId, UUID inviteeId, String message,
                                                       UUID actorUserId) throws ServiceException {
@@ -504,6 +582,7 @@ public class ClubServiceImpl implements ClubService {
                 .winCount(c.getWinCount()).lossCount(c.getLossCount()).drawCount(c.getDrawCount())
                 .matchCount(c.getMatchCount()).winRate(c.getWinRate())
                 .memberCount(memberRepository.countByClubIdAndStatus(c.getClubId(), ClubMemberStatus.ACTIVE))
+                .tournamentCount(tournamentRegistrationRepository.countDistinctTournamentIdByClubId(c.getClubId()))
                 .createdAt(c.getCreatedAt()).updatedAt(c.getUpdatedAt()).build();
     }
 

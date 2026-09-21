@@ -144,6 +144,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     );
 
     private static final String TOURNAMENT_NAME = "Giải Bóng Đá Phong Trào Sài Gòn Mở Rộng 2026";
+    private static final String COMPLETED_TOURNAMENT_NAME = "GOAT Community Cup 2026";
 
     private static final List<RegistrationSeed> REGISTRATIONS = List.of(
             new RegistrationSeed(HUY, "Sài Gòn Phủi"),
@@ -175,9 +176,17 @@ public class DemoDataSeeder implements CommandLineRunner {
         for (RegistrationSeed registration : REGISTRATIONS) {
             registrations += insertRegistration(registration);
         }
-        log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký"
+        tournaments += insertCompletedTournament();
+        registrations += insertCompletedClubRegistration();
+        registrations += insertCompletedOpponentRegistration(TUNG, "Weekend FC");
+        registrations += insertCompletedOpponentRegistration(NHAT_MINH, "Saigon Runners");
+        registrations += insertCompletedOpponentRegistration(HAI_DANG, "Dayend");
+        int fixtures = insertCompletedFixture("weekend", TUNG, "Vòng bảng", 1, 2, 1, 4)
+                + insertCompletedFixture("runners", NHAT_MINH, "Vòng bảng", 2, 0, 0, 11)
+                + insertCompletedFixture("dayend", HAI_DANG, "Vòng bảng", 3, 1, 3, 18);
+        log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký, {} trận đấu"
                         + " (bỏ qua bản ghi đã có)",
-                clubs, tags, members, activities, tournaments, registrations);
+                clubs, tags, members, activities, tournaments, registrations, fixtures);
     }
 
     private int insertClub(ClubSeed seed) {
@@ -374,5 +383,115 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("teamName", seed.teamName())
                 .setParameter("registeredAt", LocalDateTime.now().minusDays(2))
                 .executeUpdate();
+    }
+
+    private int insertCompletedTournament() {
+        return entityManager.createNativeQuery("""
+                        insert into tournaments (tournament_id, name, description, sport_type, format,
+                                                 status, organizer_id, max_participants, entry_fee, prize_pool,
+                                                 registration_open_date, registration_close_date,
+                                                 start_date, end_date,
+                                                 created_at, created_by, updated_at, updated_by)
+                        select :tournamentId, :name, :description, 'FOOTBALL', 'SINGLE_ELIMINATION',
+                               'COMPLETED', :organizerId, 8, 0, 3000000,
+                               :openDate, :closeDate, :startDate, :endDate,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournaments where tournament_id = :tournamentId)
+                        """)
+                .setParameter("tournamentId", id("tournament", COMPLETED_TOURNAMENT_NAME))
+                .setParameter("name", COMPLETED_TOURNAMENT_NAME)
+                .setParameter("description", "Giải bóng đá cộng đồng dành cho các câu lạc bộ phong trào GOAT Sports.")
+                .setParameter("organizerId", userId(HUY))
+                .setParameter("openDate", LocalDate.now().minusDays(50))
+                .setParameter("closeDate", LocalDate.now().minusDays(35))
+                .setParameter("startDate", LocalDate.now().minusDays(21))
+                .setParameter("endDate", LocalDate.now().minusDays(4))
+                .executeUpdate();
+    }
+
+    private int insertCompletedClubRegistration() {
+        String clubName = CLUBS.get(0).name();
+        return entityManager.createNativeQuery("""
+                        insert into tournament_registrations (registration_id, tournament_id, player_id, club_id,
+                                                              team_name, type, status, registered_by,
+                                                              registered_at, confirmed_at,
+                                                              created_at, created_by, updated_at, updated_by)
+                        select :registrationId, :tournamentId, :playerId, :clubId,
+                               :teamName, 'CLUB', 'CONFIRMED', :playerId,
+                               :registeredAt, :registeredAt,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournament_registrations where registration_id = :registrationId)
+                        """)
+                .setParameter("registrationId", completedRegistrationId("club"))
+                .setParameter("tournamentId", id("tournament", COMPLETED_TOURNAMENT_NAME))
+                .setParameter("playerId", userId(HUY))
+                .setParameter("clubId", id("club", clubName))
+                .setParameter("teamName", clubName)
+                .setParameter("registeredAt", LocalDateTime.now().minusDays(45))
+                .executeUpdate();
+    }
+
+    private int insertCompletedOpponentRegistration(String email, String teamName) {
+        return entityManager.createNativeQuery("""
+                        insert into tournament_registrations (registration_id, tournament_id, player_id,
+                                                              team_name, type, status, registered_by,
+                                                              registered_at, confirmed_at,
+                                                              created_at, created_by, updated_at, updated_by)
+                        select :registrationId, :tournamentId, :playerId,
+                               :teamName, 'INDIVIDUAL', 'CONFIRMED', :playerId,
+                               :registeredAt, :registeredAt,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournament_registrations where registration_id = :registrationId)
+                        """)
+                .setParameter("registrationId", completedRegistrationId(email))
+                .setParameter("tournamentId", id("tournament", COMPLETED_TOURNAMENT_NAME))
+                .setParameter("playerId", userId(email))
+                .setParameter("teamName", teamName)
+                .setParameter("registeredAt", LocalDateTime.now().minusDays(45))
+                .executeUpdate();
+    }
+
+    private int insertCompletedFixture(String key, String opponentEmail, String roundName, int matchNumber,
+                                       int clubScore, int opponentScore, int daysAgo) {
+        UUID fixtureId = id("fixture", COMPLETED_TOURNAMENT_NAME + "|" + key);
+        LocalDateTime scheduledAt = LocalDateTime.now().minusDays(daysAgo).withHour(19).withMinute(0)
+                .withSecond(0).withNano(0);
+        int inserted = entityManager.createNativeQuery("""
+                        insert into tournament_fixtures (fixture_id, tournament_id, round_name, round_number,
+                                                         match_number, registration1_id, registration2_id,
+                                                         score1, score2, winner_registration_id, status,
+                                                         created_at, created_by, updated_at, updated_by)
+                        select :fixtureId, :tournamentId, :roundName, 1,
+                               :matchNumber, :registration1Id, :registration2Id,
+                               :score1, :score2,
+                               case when :score1 = :score2 then null
+                                    when :score1 > :score2 then :registration1Id else :registration2Id end,
+                               'COMPLETED',
+                               :scheduledAt, 'demo-seed', :scheduledAt, 'demo-seed'
+                        where not exists (select 1 from tournament_fixtures where fixture_id = :fixtureId)
+                        """)
+                .setParameter("fixtureId", fixtureId)
+                .setParameter("tournamentId", id("tournament", COMPLETED_TOURNAMENT_NAME))
+                .setParameter("roundName", roundName)
+                .setParameter("matchNumber", matchNumber)
+                .setParameter("registration1Id", completedRegistrationId("club"))
+                .setParameter("registration2Id", completedRegistrationId(opponentEmail))
+                .setParameter("score1", clubScore)
+                .setParameter("score2", opponentScore)
+                .setParameter("scheduledAt", scheduledAt)
+                .executeUpdate();
+        entityManager.createNativeQuery("""
+                        update tournament_fixtures
+                        set created_at = :scheduledAt, updated_at = :scheduledAt
+                        where fixture_id = :fixtureId and created_by = 'demo-seed'
+                        """)
+                .setParameter("fixtureId", fixtureId)
+                .setParameter("scheduledAt", scheduledAt)
+                .executeUpdate();
+        return inserted;
+    }
+
+    private UUID completedRegistrationId(String key) {
+        return id("registration", COMPLETED_TOURNAMENT_NAME + "|" + key);
     }
 }

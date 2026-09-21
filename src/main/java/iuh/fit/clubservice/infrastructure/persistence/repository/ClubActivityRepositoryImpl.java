@@ -5,6 +5,9 @@ import iuh.fit.clubservice.domain.entity.ClubActivity;
 import iuh.fit.clubservice.infrastructure.persistence.mapper.ClubActivityEntityMapper;
 import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaClubActivityRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -36,12 +39,28 @@ public class ClubActivityRepositoryImpl implements ClubActivityRepository {
     }
 
     @Override
+    public Page<ClubActivity> findUpcomingByClubId(UUID clubId, java.time.LocalDateTime from, Pageable pageable) {
+        return jpaClubActivityRepository
+                .findByClubIdAndStartAtGreaterThanEqualOrderByStartAtAsc(clubId, from, pageable)
+                .map(clubActivityEntityMapper::toDomain);
+    }
+
+    @Override
     public List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from) {
         if (clubIds == null || clubIds.isEmpty()) return List.of();
         return jpaClubActivityRepository
                 .findByClubIdInAndStartAtGreaterThanEqualOrderByStartAtAsc(clubIds, from).stream()
                 .map(clubActivityEntityMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from,
+                                                    Pageable pageable) {
+        if (clubIds == null || clubIds.isEmpty()) return new PageImpl<>(List.of(), pageable, 0);
+        return jpaClubActivityRepository
+                .findByClubIdInAndStartAtGreaterThanEqualOrderByStartAtAsc(clubIds, from, pageable)
+                .map(clubActivityEntityMapper::toDomain);
     }
 
     @Override

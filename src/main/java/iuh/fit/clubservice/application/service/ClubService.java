@@ -31,6 +31,8 @@ public interface ClubService {
 
     List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit);
 
+    Page<ClubActivityResponseCommand> getMyUpcomingActivitiesPage(UUID userId, Pageable pageable);
+
     Page<ClubResponseCommand> searchClubs(SportType sportType, String city, String keyword, Pageable pageable);
 
     ClubResponseCommand getClubDetails(UUID clubId) throws ServiceException;
@@ -45,9 +47,16 @@ public interface ClubService {
 
     List<ClubMemberResponseCommand> getClubMembers(UUID clubId, UUID requesterId) throws ServiceException;
 
+    Page<ClubMemberResponseCommand> getClubMembersPage(UUID clubId, UUID requesterId,
+            ClubMemberStatus status, Pageable pageable) throws ServiceException;
+
     Optional<ClubMemberResponseCommand> getMembership(UUID clubId, UUID userId);
 
     List<ClubActivityResponseCommand> getClubActivities(UUID clubId);
+
+    Page<ClubActivityResponseCommand> getClubActivitiesPage(UUID clubId, Pageable pageable);
+
+    List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit) throws ServiceException;
 
     ClubActivityResponseCommand createClubActivity(CreateClubActivityCommand command) throws ServiceException;
 

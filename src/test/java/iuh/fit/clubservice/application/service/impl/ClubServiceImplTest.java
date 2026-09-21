@@ -13,15 +13,22 @@ import iuh.fit.clubservice.application.port.persistence.ClubActivityRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubInvitationRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
+import iuh.fit.clubservice.application.port.persistence.TournamentFixtureRepository;
+import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
+import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
 import iuh.fit.clubservice.domain.entity.ClubInvitation;
 import iuh.fit.clubservice.domain.entity.ClubMember;
+import iuh.fit.clubservice.domain.entity.Tournament;
+import iuh.fit.clubservice.domain.entity.TournamentFixture;
+import iuh.fit.clubservice.domain.entity.TournamentRegistration;
 import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
 import iuh.fit.clubservice.domain.enums.ClubInvitationStatus;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
+import iuh.fit.clubservice.domain.enums.MatchStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,6 +38,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +62,9 @@ class ClubServiceImplTest {
     @Mock private ClubMemberRepository memberRepository;
     @Mock private ClubActivityRepository activityRepository;
     @Mock private ClubInvitationRepository invitationRepository;
+    @Mock private TournamentRegistrationRepository tournamentRegistrationRepository;
+    @Mock private TournamentFixtureRepository tournamentFixtureRepository;
+    @Mock private TournamentRepository tournamentRepository;
     @Mock private ClubConversationSync conversationSync;
     @Mock private ClubEventPublisher eventPublisher;
 
@@ -68,7 +80,8 @@ class ClubServiceImplTest {
     void setUp() {
         service = new ClubServiceImpl(
                 clubRepository, memberRepository, activityRepository,
-                invitationRepository, conversationSync, eventPublisher
+                invitationRepository, tournamentRegistrationRepository, tournamentFixtureRepository,
+                tournamentRepository, conversationSync, eventPublisher
         );
 
         when(clubRepository.save(any())).thenAnswer(call -> {
@@ -227,6 +240,34 @@ class ClubServiceImplTest {
     private ClubMember memberWithRole(UUID membership, UUID userId, ClubRole role) {
         return ClubMember.builder().membershipId(membership).clubId(clubId).userId(userId)
                 .role(role).status(ClubMemberStatus.ACTIVE).joinedAt(LocalDateTime.now()).build();
+    }
+
+    @Test
+    @DisplayName("danh sách thành viên hoạt động được phân trang")
+    void activeMembersArePaged() throws ServiceException {
+        PageRequest pageable = PageRequest.of(0, 7);
+        ClubMember member = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE, pageable))
+                .thenReturn(new PageImpl<>(List.of(member), pageable, 8));
+
+        var page = service.getClubMembersPage(clubId, null, ClubMemberStatus.ACTIVE, pageable);
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getTotalElements()).isEqualTo(8);
+        assertThat(page.getContent().getFirst().getMembershipId()).isEqualTo(membershipId);
+    }
+
+    @Test
+    @DisplayName("người ngoài không xem được trang yêu cầu đang chờ")
+    void pendingMemberPageRequiresManager() {
+        UUID outsider = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+
+        assertThatThrownBy(() -> service.getClubMembersPage(clubId, outsider,
+                ClubMemberStatus.PENDING, PageRequest.of(0, 7)))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("ban quản trị");
     }
 
     // ---------- CLUB-01: quan ly thanh vien ----------
@@ -618,5 +659,55 @@ class ClubServiceImplTest {
         assertThatThrownBy(() -> service.acceptInvitation(invitationId, UUID.randomUUID()))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("không dành cho bạn");
+    }
+
+    @Test
+    @DisplayName("hoạt động sắp tới của CLB được trả theo từng trang")
+    void upcomingActivitiesArePaged() {
+        PageRequest pageable = PageRequest.of(0, 3);
+        ClubActivity activity = ClubActivity.builder().activityId(UUID.randomUUID()).clubId(clubId)
+                .title("Buổi tập chiến thuật").startAt(LocalDateTime.now().plusDays(1))
+                .endAt(LocalDateTime.now().plusDays(1).plusHours(2)).build();
+        when(activityRepository.findUpcomingByClubId(eq(clubId), any(LocalDateTime.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(activity), pageable, 1));
+
+        var page = service.getClubActivitiesPage(clubId, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).extracting("title").containsExactly("Buổi tập chiến thuật");
+    }
+
+    @Test
+    @DisplayName("ba trận gần nhất được quy đổi điểm số theo phía CLB")
+    void recentMatchesUseClubPerspective() throws ServiceException {
+        UUID tournamentId = UUID.randomUUID();
+        UUID clubRegistrationId = UUID.randomUUID();
+        UUID opponentRegistrationId = UUID.randomUUID();
+        LocalDateTime playedAt = LocalDateTime.now().minusDays(2);
+        TournamentRegistration clubRegistration = TournamentRegistration.builder()
+                .registrationId(clubRegistrationId).tournamentId(tournamentId).clubId(clubId)
+                .teamName("GOAT FC").build();
+        TournamentRegistration opponent = TournamentRegistration.builder()
+                .registrationId(opponentRegistrationId).tournamentId(tournamentId)
+                .teamName("Weekend FC").build();
+        TournamentFixture fixture = TournamentFixture.builder().fixtureId(UUID.randomUUID())
+                .tournamentId(tournamentId).registration1Id(opponentRegistrationId)
+                .registration2Id(clubRegistrationId).score1(1).score2(2)
+                .createdAt(playedAt).status(MatchStatus.COMPLETED).build();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of(clubRegistration));
+        when(tournamentFixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(fixture));
+        when(tournamentRegistrationRepository.findById(opponentRegistrationId)).thenReturn(Optional.of(opponent));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
+                Tournament.builder().tournamentId(tournamentId).name("GOAT Community Cup").build()));
+
+        var matches = service.getClubRecentMatches(clubId, 3);
+
+        assertThat(matches).hasSize(1);
+        assertThat(matches.get(0).getOpponentName()).isEqualTo("Weekend FC");
+        assertThat(matches.get(0).getClubScore()).isEqualTo(2);
+        assertThat(matches.get(0).getOpponentScore()).isEqualTo(1);
+        assertThat(matches.get(0).getResult()).isEqualTo("WIN");
+        assertThat(matches.get(0).getPlayedAt()).isEqualTo(playedAt);
     }
 }

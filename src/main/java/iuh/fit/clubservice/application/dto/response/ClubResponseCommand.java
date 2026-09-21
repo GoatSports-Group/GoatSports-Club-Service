@@ -27,6 +27,7 @@ public class ClubResponseCommand {
     private Integer matchCount;
     private Double winRate;
     private long memberCount;
+    private long tournamentCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

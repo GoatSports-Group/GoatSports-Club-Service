@@ -6,6 +6,8 @@ import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.infrastructure.persistence.mapper.ClubMemberEntityMapper;
 import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaClubMemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -37,6 +39,12 @@ public class ClubMemberRepositoryImpl implements ClubMemberRepository {
     @Override
     public List<ClubMember> findByClubIdAndStatus(UUID clubId, ClubMemberStatus status) {
         return jpaClubMemberRepository.findByClubIdAndStatus(clubId, status).stream().map(clubMemberEntityMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ClubMember> findByClubIdAndStatus(UUID clubId, ClubMemberStatus status, Pageable pageable) {
+        return jpaClubMemberRepository.findByClubIdAndStatus(clubId, status, pageable)
+                .map(clubMemberEntityMapper::toDomain);
     }
 
     @Override

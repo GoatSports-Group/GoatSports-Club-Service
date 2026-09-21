@@ -17,6 +17,7 @@ import iuh.fit.clubservice.presentation.request.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -104,6 +105,21 @@ public class ClubController {
         return clubService.getClubMembers(clubId, currentUserProvider.getCurrentUserId().orElse(null));
     }
 
+    @GetMapping("/me/activities/page") @ApiMessage("Lấy hoạt động sắp tới phân trang thành công")
+    public Page<ClubActivityResponseCommand> myUpcomingActivitiesPage(
+            @PageableDefault(size = 3) Pageable pageable) throws ServiceException {
+        return clubService.getMyUpcomingActivitiesPage(requireUser(), pageable);
+    }
+
+    @GetMapping("/{clubId}/members/page") @ApiMessage("Lấy danh sách thành viên phân trang thành công")
+    public Page<ClubMemberResponseCommand> membersPage(@PathVariable UUID clubId,
+            @RequestParam(defaultValue = "ACTIVE") ClubMemberStatus status,
+            @PageableDefault(size = 7, sort = "joinedAt", direction = Sort.Direction.ASC) Pageable pageable)
+            throws ServiceException {
+        return clubService.getClubMembersPage(clubId,
+                currentUserProvider.getCurrentUserId().orElse(null), status, pageable);
+    }
+
     @GetMapping("/{clubId}/membership/me") @ApiMessage("Lấy trạng thái thành viên thành công")
     public ResponseEntity<ClubMemberResponseCommand> myMembership(@PathVariable UUID clubId) throws ServiceException {
         return clubService.getMembership(clubId, requireUser()).map(ResponseEntity::ok)
@@ -113,6 +129,18 @@ public class ClubController {
     @GetMapping("/{clubId}/activities") @ApiMessage("Lấy hoạt động câu lạc bộ thành công")
     public List<ClubActivityResponseCommand> activities(@PathVariable UUID clubId) {
         return clubService.getClubActivities(clubId);
+    }
+
+    @GetMapping("/{clubId}/activities/page") @ApiMessage("Lấy hoạt động câu lạc bộ phân trang thành công")
+    public Page<ClubActivityResponseCommand> activitiesPage(@PathVariable UUID clubId,
+            @PageableDefault(size = 3) Pageable pageable) {
+        return clubService.getClubActivitiesPage(clubId, pageable);
+    }
+
+    @GetMapping("/{clubId}/matches/recent") @ApiMessage("Lấy các trận gần nhất của câu lạc bộ thành công")
+    public List<ClubRecentMatchResponseCommand> recentMatches(@PathVariable UUID clubId,
+            @RequestParam(defaultValue = "3") int limit) throws ServiceException {
+        return clubService.getClubRecentMatches(clubId, limit);
     }
 
     @PostMapping("/{clubId}/activities") @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo hoạt động thành công")

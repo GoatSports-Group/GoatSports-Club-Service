@@ -44,6 +44,13 @@ public class TournamentRegistrationRepositoryImpl implements TournamentRegistrat
     }
 
     @Override
+    public List<TournamentRegistration> findByClubId(UUID clubId) {
+        return jpaTournamentRegistrationRepository.findByClubId(clubId).stream()
+                .map(tournamentRegistrationEntityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<TournamentRegistration> findByTournamentIdAndPlayerId(UUID tournamentId, UUID playerId) {
         return jpaTournamentRegistrationRepository.findByTournamentIdAndPlayerId(tournamentId, playerId).map(tournamentRegistrationEntityMapper::toDomain);
     }
@@ -51,6 +58,11 @@ public class TournamentRegistrationRepositoryImpl implements TournamentRegistrat
     @Override
     public long countByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status) {
         return jpaTournamentRegistrationRepository.countByTournamentIdAndStatus(tournamentId, status);
+    }
+
+    @Override
+    public long countDistinctTournamentIdByClubId(UUID clubId) {
+        return jpaTournamentRegistrationRepository.countDistinctTournamentIdByClubId(clubId);
     }
 
     @Override

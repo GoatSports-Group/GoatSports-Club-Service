@@ -3,6 +3,8 @@ package iuh.fit.clubservice.infrastructure.persistence.repository.jpa;
 import iuh.fit.clubservice.domain.enums.RegistrationStatus;
 import iuh.fit.clubservice.infrastructure.persistence.entity.TournamentRegistrationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,7 +14,16 @@ import java.util.UUID;
 @Repository
 public interface JpaTournamentRegistrationRepository extends JpaRepository<TournamentRegistrationEntity, UUID> {
     List<TournamentRegistrationEntity> findByTournamentId(UUID tournamentId);
+
     List<TournamentRegistrationEntity> findByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status);
+
+    List<TournamentRegistrationEntity> findByClubId(UUID clubId);
+
     Optional<TournamentRegistrationEntity> findByTournamentIdAndPlayerId(UUID tournamentId, UUID playerId);
+
     long countByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status);
+
+    @Query("select count(distinct registration.tournamentId) from TournamentRegistrationEntity registration "
+            + "where registration.clubId = :clubId")
+    long countDistinctTournamentIdByClubId(@Param("clubId") UUID clubId);
 }
