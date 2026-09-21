@@ -709,5 +709,9 @@ class ClubServiceImplTest {
         assertThat(matches.get(0).getOpponentScore()).isEqualTo(1);
         assertThat(matches.get(0).getResult()).isEqualTo("WIN");
         assertThat(matches.get(0).getPlayedAt()).isEqualTo(playedAt);
+
+        var page = service.getClubMatchesPage(clubId, PageRequest.of(0, 3));
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
     }
 }

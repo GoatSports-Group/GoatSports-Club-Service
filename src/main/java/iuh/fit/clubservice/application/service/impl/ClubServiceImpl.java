@@ -13,6 +13,7 @@ import iuh.fit.clubservice.domain.entity.*;
 import iuh.fit.clubservice.domain.enums.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,8 +196,21 @@ public class ClubServiceImpl implements ClubService {
     @Override
     public List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit)
             throws ServiceException {
-        requireClub(clubId);
         int safeLimit = Math.max(1, Math.min(limit, 20));
+        return collectClubMatches(clubId).stream().limit(safeLimit).toList();
+    }
+
+    @Override
+    public Page<ClubRecentMatchResponseCommand> getClubMatchesPage(UUID clubId, Pageable pageable)
+            throws ServiceException {
+        List<ClubRecentMatchResponseCommand> matches = collectClubMatches(clubId);
+        int start = Math.toIntExact(Math.min(pageable.getOffset(), matches.size()));
+        int end = Math.min(start + pageable.getPageSize(), matches.size());
+        return new PageImpl<>(matches.subList(start, end), pageable, matches.size());
+    }
+
+    private List<ClubRecentMatchResponseCommand> collectClubMatches(UUID clubId) throws ServiceException {
+        requireClub(clubId);
         List<ClubRecentMatchResponseCommand> matches = new ArrayList<>();
         for (TournamentRegistration clubRegistration : tournamentRegistrationRepository.findByClubId(clubId)) {
             for (TournamentFixture fixture : tournamentFixtureRepository
@@ -236,7 +250,6 @@ public class ClubServiceImpl implements ClubService {
         return matches.stream()
                 .sorted(java.util.Comparator.comparing(ClubRecentMatchResponseCommand::getPlayedAt,
                         java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
-                .limit(safeLimit)
                 .toList();
     }
 

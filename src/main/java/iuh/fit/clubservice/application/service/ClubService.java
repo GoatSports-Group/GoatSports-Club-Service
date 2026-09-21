@@ -58,6 +58,8 @@ public interface ClubService {
 
     List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit) throws ServiceException;
 
+    Page<ClubRecentMatchResponseCommand> getClubMatchesPage(UUID clubId, Pageable pageable) throws ServiceException;
+
     ClubActivityResponseCommand createClubActivity(CreateClubActivityCommand command) throws ServiceException;
 
     ClubResponseCommand updateClub(UpdateClubCommand command) throws ServiceException;

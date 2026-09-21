@@ -81,6 +81,9 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private record RegistrationSeed(String email, String teamName) {}
 
+    private record CompletedMatchSeed(String key, String opponentEmail, int clubScore,
+                                      int opponentScore, int daysAgo) {}
+
     private static MemberSeed active(String email, ClubRole role, int daysAgo) {
         return new MemberSeed(email, role, ClubMemberStatus.ACTIVE, null, daysAgo);
     }
@@ -145,6 +148,7 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private static final String TOURNAMENT_NAME = "Giải Bóng Đá Phong Trào Sài Gòn Mở Rộng 2026";
     private static final String COMPLETED_TOURNAMENT_NAME = "GOAT Community Cup 2026";
+    private static final String BADMINTON_TOURNAMENT_NAME = "GOAT Shuttle League 2026";
 
     private static final List<RegistrationSeed> REGISTRATIONS = List.of(
             new RegistrationSeed(HUY, "Sài Gòn Phủi"),
@@ -152,6 +156,46 @@ public class DemoDataSeeder implements CommandLineRunner {
             new RegistrationSeed(NHAT_MINH, "Quận 7 United"),
             new RegistrationSeed(HAI_DANG, "Hà Nội Trẻ"),
             new RegistrationSeed(DUC_ANH, "Cầu Giấy FC")
+    );
+
+    /** 18 fixtures mirror the aggregate 12 wins, 3 draws and 3 losses of the demo football club. */
+    private static final List<CompletedMatchSeed> COMPLETED_MATCHES = List.of(
+            new CompletedMatchSeed("weekend", TUNG, 2, 1, 4),
+            new CompletedMatchSeed("runners", NHAT_MINH, 0, 0, 11),
+            new CompletedMatchSeed("dayend", HAI_DANG, 1, 3, 18),
+            new CompletedMatchSeed("weekend-05", TUNG, 3, 1, 25),
+            new CompletedMatchSeed("runners-05", NHAT_MINH, 2, 0, 32),
+            new CompletedMatchSeed("dayend-05", HAI_DANG, 2, 1, 39),
+            new CompletedMatchSeed("weekend-04", TUNG, 1, 1, 46),
+            new CompletedMatchSeed("runners-04", NHAT_MINH, 4, 2, 53),
+            new CompletedMatchSeed("dayend-04", HAI_DANG, 3, 0, 60),
+            new CompletedMatchSeed("weekend-03", TUNG, 0, 2, 67),
+            new CompletedMatchSeed("runners-03", NHAT_MINH, 2, 1, 74),
+            new CompletedMatchSeed("dayend-03", HAI_DANG, 1, 0, 81),
+            new CompletedMatchSeed("weekend-02", TUNG, 2, 2, 88),
+            new CompletedMatchSeed("runners-02", NHAT_MINH, 3, 1, 95),
+            new CompletedMatchSeed("dayend-02", HAI_DANG, 2, 0, 102),
+            new CompletedMatchSeed("weekend-01", TUNG, 1, 2, 109),
+            new CompletedMatchSeed("runners-01", NHAT_MINH, 4, 1, 116),
+            new CompletedMatchSeed("dayend-01", HAI_DANG, 3, 2, 123)
+    );
+
+    /** 14 fixtures mirror the aggregate 9 wins, 2 draws and 3 losses of the demo badminton club. */
+    private static final List<CompletedMatchSeed> BADMINTON_MATCHES = List.of(
+            new CompletedMatchSeed("smash-05", THU_TRANG, 21, 15, 5),
+            new CompletedMatchSeed("shuttle-05", BAO_NGOC, 21, 18, 12),
+            new CompletedMatchSeed("rackets-04", VAN_AN, 15, 21, 19),
+            new CompletedMatchSeed("smash-04", THU_TRANG, 21, 12, 26),
+            new CompletedMatchSeed("shuttle-04", BAO_NGOC, 20, 20, 33),
+            new CompletedMatchSeed("rackets-03", VAN_AN, 21, 19, 40),
+            new CompletedMatchSeed("smash-03", THU_TRANG, 17, 21, 47),
+            new CompletedMatchSeed("shuttle-03", BAO_NGOC, 22, 20, 54),
+            new CompletedMatchSeed("rackets-02", VAN_AN, 21, 14, 61),
+            new CompletedMatchSeed("smash-02", THU_TRANG, 19, 19, 68),
+            new CompletedMatchSeed("shuttle-02", BAO_NGOC, 21, 17, 75),
+            new CompletedMatchSeed("rackets-01", VAN_AN, 18, 21, 82),
+            new CompletedMatchSeed("smash-01", THU_TRANG, 21, 16, 89),
+            new CompletedMatchSeed("shuttle-01", BAO_NGOC, 21, 11, 96)
     );
 
     @Override
@@ -181,9 +225,22 @@ public class DemoDataSeeder implements CommandLineRunner {
         registrations += insertCompletedOpponentRegistration(TUNG, "Weekend FC");
         registrations += insertCompletedOpponentRegistration(NHAT_MINH, "Saigon Runners");
         registrations += insertCompletedOpponentRegistration(HAI_DANG, "Dayend");
-        int fixtures = insertCompletedFixture("weekend", TUNG, "Vòng bảng", 1, 2, 1, 4)
-                + insertCompletedFixture("runners", NHAT_MINH, "Vòng bảng", 2, 0, 0, 11)
-                + insertCompletedFixture("dayend", HAI_DANG, "Vòng bảng", 3, 1, 3, 18);
+        int fixtures = 0;
+        for (int index = 0; index < COMPLETED_MATCHES.size(); index++) {
+            CompletedMatchSeed match = COMPLETED_MATCHES.get(index);
+            fixtures += insertCompletedFixture(match.key(), match.opponentEmail(), "Vòng bảng",
+                    index + 1, match.clubScore(), match.opponentScore(), match.daysAgo());
+        }
+        tournaments += insertCompletedBadmintonTournament();
+        registrations += insertCompletedBadmintonClubRegistration();
+        registrations += insertCompletedBadmintonOpponentRegistration(THU_TRANG, "Smash Masters");
+        registrations += insertCompletedBadmintonOpponentRegistration(BAO_NGOC, "Saigon Shuttle");
+        registrations += insertCompletedBadmintonOpponentRegistration(VAN_AN, "Phú Nhuận Rackets");
+        for (int index = 0; index < BADMINTON_MATCHES.size(); index++) {
+            CompletedMatchSeed match = BADMINTON_MATCHES.get(index);
+            fixtures += insertCompletedBadmintonFixture(match.key(), match.opponentEmail(), "Vòng bảng",
+                    index + 1, match.clubScore(), match.opponentScore(), match.daysAgo());
+        }
         log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký, {} trận đấu"
                         + " (bỏ qua bản ghi đã có)",
                 clubs, tags, members, activities, tournaments, registrations, fixtures);
@@ -225,6 +282,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                         update clubs
                         set win_count = :winCount, loss_count = :lossCount, draw_count = :drawCount,
                             match_count = :matchCount, win_rate = :winRate,
+                            conversation_id = coalesce(conversation_id, :conversationId),
                             updated_at = now(), updated_by = 'demo-seed'
                         where club_id = :clubId and created_by = 'demo-seed'
                         """)
@@ -234,6 +292,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("drawCount", seed.drawCount())
                 .setParameter("matchCount", matches)
                 .setParameter("winRate", winRate)
+                .setParameter("conversationId", id("conversation", id("club", seed.name()).toString()))
                 .executeUpdate();
         return inserted;
     }
@@ -402,9 +461,9 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("name", COMPLETED_TOURNAMENT_NAME)
                 .setParameter("description", "Giải bóng đá cộng đồng dành cho các câu lạc bộ phong trào GOAT Sports.")
                 .setParameter("organizerId", userId(HUY))
-                .setParameter("openDate", LocalDate.now().minusDays(50))
-                .setParameter("closeDate", LocalDate.now().minusDays(35))
-                .setParameter("startDate", LocalDate.now().minusDays(21))
+                .setParameter("openDate", LocalDate.now().minusDays(165))
+                .setParameter("closeDate", LocalDate.now().minusDays(145))
+                .setParameter("startDate", LocalDate.now().minusDays(130))
                 .setParameter("endDate", LocalDate.now().minusDays(4))
                 .executeUpdate();
     }
@@ -493,5 +552,115 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private UUID completedRegistrationId(String key) {
         return id("registration", COMPLETED_TOURNAMENT_NAME + "|" + key);
+    }
+
+    private int insertCompletedBadmintonTournament() {
+        return entityManager.createNativeQuery("""
+                        insert into tournaments (tournament_id, name, description, sport_type, format,
+                                                 status, organizer_id, max_participants, entry_fee, prize_pool,
+                                                 registration_open_date, registration_close_date,
+                                                 start_date, end_date,
+                                                 created_at, created_by, updated_at, updated_by)
+                        select :tournamentId, :name, :description, 'BADMINTON', 'ROUND_ROBIN',
+                               'COMPLETED', :organizerId, 8, 0, 1500000,
+                               :openDate, :closeDate, :startDate, :endDate,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournaments where tournament_id = :tournamentId)
+                        """)
+                .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                .setParameter("name", BADMINTON_TOURNAMENT_NAME)
+                .setParameter("description", "Giải cầu lông cộng đồng theo thể thức vòng tròn dành cho các câu lạc bộ GOAT Sports.")
+                .setParameter("organizerId", userId(KHANH_LINH))
+                .setParameter("openDate", LocalDate.now().minusDays(125))
+                .setParameter("closeDate", LocalDate.now().minusDays(112))
+                .setParameter("startDate", LocalDate.now().minusDays(100))
+                .setParameter("endDate", LocalDate.now().minusDays(5))
+                .executeUpdate();
+    }
+
+    private int insertCompletedBadmintonClubRegistration() {
+        String clubName = CLUBS.get(1).name();
+        return entityManager.createNativeQuery("""
+                        insert into tournament_registrations (registration_id, tournament_id, player_id, club_id,
+                                                              team_name, type, status, registered_by,
+                                                              registered_at, confirmed_at,
+                                                              created_at, created_by, updated_at, updated_by)
+                        select :registrationId, :tournamentId, :playerId, :clubId,
+                               :teamName, 'CLUB', 'CONFIRMED', :playerId,
+                               :registeredAt, :registeredAt,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournament_registrations where registration_id = :registrationId)
+                        """)
+                .setParameter("registrationId", completedBadmintonRegistrationId("club"))
+                .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                .setParameter("playerId", userId(KHANH_LINH))
+                .setParameter("clubId", id("club", clubName))
+                .setParameter("teamName", clubName)
+                .setParameter("registeredAt", LocalDateTime.now().minusDays(105))
+                .executeUpdate();
+    }
+
+    private int insertCompletedBadmintonOpponentRegistration(String email, String teamName) {
+        return entityManager.createNativeQuery("""
+                        insert into tournament_registrations (registration_id, tournament_id, player_id,
+                                                              team_name, type, status, registered_by,
+                                                              registered_at, confirmed_at,
+                                                              created_at, created_by, updated_at, updated_by)
+                        select :registrationId, :tournamentId, :playerId,
+                               :teamName, 'INDIVIDUAL', 'CONFIRMED', :playerId,
+                               :registeredAt, :registeredAt,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournament_registrations where registration_id = :registrationId)
+                        """)
+                .setParameter("registrationId", completedBadmintonRegistrationId(email))
+                .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                .setParameter("playerId", userId(email))
+                .setParameter("teamName", teamName)
+                .setParameter("registeredAt", LocalDateTime.now().minusDays(105))
+                .executeUpdate();
+    }
+
+    private int insertCompletedBadmintonFixture(String key, String opponentEmail, String roundName,
+                                                 int matchNumber, int clubScore, int opponentScore, int daysAgo) {
+        UUID fixtureId = id("fixture", BADMINTON_TOURNAMENT_NAME + "|" + key);
+        LocalDateTime scheduledAt = LocalDateTime.now().minusDays(daysAgo).withHour(8).withMinute(0)
+                .withSecond(0).withNano(0);
+        int inserted = entityManager.createNativeQuery("""
+                        insert into tournament_fixtures (fixture_id, tournament_id, round_name, round_number,
+                                                         match_number, registration1_id, registration2_id,
+                                                         score1, score2, winner_registration_id, status,
+                                                         created_at, created_by, updated_at, updated_by)
+                        select :fixtureId, :tournamentId, :roundName, 1,
+                               :matchNumber, :registration1Id, :registration2Id,
+                               :score1, :score2,
+                               case when :score1 = :score2 then null
+                                    when :score1 > :score2 then :registration1Id else :registration2Id end,
+                               'COMPLETED',
+                               :scheduledAt, 'demo-seed', :scheduledAt, 'demo-seed'
+                        where not exists (select 1 from tournament_fixtures where fixture_id = :fixtureId)
+                        """)
+                .setParameter("fixtureId", fixtureId)
+                .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                .setParameter("roundName", roundName)
+                .setParameter("matchNumber", matchNumber)
+                .setParameter("registration1Id", completedBadmintonRegistrationId("club"))
+                .setParameter("registration2Id", completedBadmintonRegistrationId(opponentEmail))
+                .setParameter("score1", clubScore)
+                .setParameter("score2", opponentScore)
+                .setParameter("scheduledAt", scheduledAt)
+                .executeUpdate();
+        entityManager.createNativeQuery("""
+                        update tournament_fixtures
+                        set created_at = :scheduledAt, updated_at = :scheduledAt
+                        where fixture_id = :fixtureId and created_by = 'demo-seed'
+                        """)
+                .setParameter("fixtureId", fixtureId)
+                .setParameter("scheduledAt", scheduledAt)
+                .executeUpdate();
+        return inserted;
+    }
+
+    private UUID completedBadmintonRegistrationId(String key) {
+        return id("registration", BADMINTON_TOURNAMENT_NAME + "|" + key);
     }
 }

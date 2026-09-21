@@ -143,6 +143,12 @@ public class ClubController {
         return clubService.getClubRecentMatches(clubId, limit);
     }
 
+    @GetMapping("/{clubId}/matches/page") @ApiMessage("Lấy lịch sử thi đấu phân trang thành công")
+    public Page<ClubRecentMatchResponseCommand> matchesPage(@PathVariable UUID clubId,
+            @PageableDefault(size = 3) Pageable pageable) throws ServiceException {
+        return clubService.getClubMatchesPage(clubId, pageable);
+    }
+
     @PostMapping("/{clubId}/activities") @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo hoạt động thành công")
     public ClubActivityResponseCommand createActivity(@PathVariable UUID clubId,
             @Valid @RequestBody CreateClubActivityRequest request) throws ServiceException {
