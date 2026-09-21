@@ -37,6 +37,12 @@ public class ClubMemberEntity extends BaseEntity {
     @Column(name = "status", nullable = false)
     private ClubMemberStatus status;
 
+    @Column(name = "intro_message", length = 1000)
+    private String introMessage;
+
+    @Column(name = "applied_at")
+    private LocalDateTime requestedAt;
+
     @Column(name = "joined_at")
     private LocalDateTime joinedAt;
 

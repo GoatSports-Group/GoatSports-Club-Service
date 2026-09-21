@@ -96,6 +96,8 @@ public class ClubServiceImpl implements ClubService {
         member.setUserId(command.getUserId());
         member.setRole(ClubRole.MEMBER);
         member.setStatus(status);
+        member.setIntroMessage(status == ClubMemberStatus.PENDING ? normalize(command.getIntroMessage()) : null);
+        member.setRequestedAt(status == ClubMemberStatus.PENDING ? LocalDateTime.now() : null);
         member.setJoinedAt(status == ClubMemberStatus.ACTIVE ? LocalDateTime.now() : null);
         member.setRespondedAt(null);
         member.setRespondedBy(null);
@@ -342,7 +344,7 @@ public class ClubServiceImpl implements ClubService {
                                 .role(member.getRole())
                                 .status(member.getStatus())
                                 .joinedAt(member.getJoinedAt())
-                                .requestedAt(member.getCreatedAt())
+                                .requestedAt(member.getRequestedAt() == null ? member.getCreatedAt() : member.getRequestedAt())
                                 .club(toResponse(club))
                                 .build())
                         .orElse(null))
@@ -491,7 +493,8 @@ public class ClubServiceImpl implements ClubService {
 
     private ClubMemberResponseCommand toResponse(ClubMember m) {
         return ClubMemberResponseCommand.builder().membershipId(m.getMembershipId()).clubId(m.getClubId())
-                .userId(m.getUserId()).role(m.getRole()).status(m.getStatus()).joinedAt(m.getJoinedAt())
+                .userId(m.getUserId()).role(m.getRole()).status(m.getStatus())
+                .introMessage(m.getIntroMessage()).requestedAt(m.getRequestedAt()).joinedAt(m.getJoinedAt())
                 .respondedBy(m.getRespondedBy()).respondedAt(m.getRespondedAt()).build();
     }
 

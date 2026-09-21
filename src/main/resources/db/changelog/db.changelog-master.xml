@@ -9,4 +9,5 @@
     <include file="/db/changelog/schema/07-09-2026/align-club-tournament-domain.xml"/>
     <include file="/db/changelog/schema/20-09-2026/add-club-location.xml"/>
     <include file="/db/changelog/schema/20-09-2026/add-club-invitations.xml"/>
+    <include file="/db/changelog/schema/21-09-2026/add-club-member-request.xml"/>
 </databaseChangeLog>

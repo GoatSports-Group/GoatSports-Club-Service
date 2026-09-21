@@ -23,11 +23,11 @@ import java.util.function.Consumer;
 @Component
 @ConditionalOnProperty(prefix = "club.events", name = "producer-enabled", havingValue = "true")
 public class ClubEventKafkaPublisher implements ClubEventPublisher {
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final String topic;
 
-    public ClubEventKafkaPublisher(KafkaTemplate<String, String> kafkaTemplate,
+    public ClubEventKafkaPublisher(KafkaTemplate<String, Object> kafkaTemplate,
                                    ObjectMapper objectMapper,
                                    @Value("${club.events.topic}") String topic) {
         this.kafkaTemplate = kafkaTemplate;
@@ -108,8 +108,16 @@ public class ClubEventKafkaPublisher implements ClubEventPublisher {
             envelope.put("actorId", String.valueOf(actorId));
             envelope.set("payload", payload);
 
-            kafkaTemplate.send(topic, club.getClubId().toString(),
-                    objectMapper.writeValueAsString(envelope));
+            // The configured JsonSerializer must receive the JSON object itself.
+            // Sending writeValueAsString(envelope) would serialize the JSON a second
+            // time, so consumers would receive a quoted string instead of an object.
+            kafkaTemplate.send(topic, club.getClubId().toString(), envelope)
+                    .whenComplete((result, error) -> {
+                        if (error != null) {
+                            log.warn("Không phát được sự kiện {} của CLB {}: {}",
+                                    eventType, club.getClubId(), error.getMessage());
+                        }
+                    });
         } catch (Exception exception) {
             // Thong bao tre hon mot nhip khong duoc lam hong nghiep vu goc.
             log.warn("Không phát được sự kiện {} của CLB {}: {}",

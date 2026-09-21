@@ -136,9 +136,12 @@ class ClubServiceImplTest {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
         when(memberRepository.findByClubIdAndUserId(clubId, newcomer)).thenReturn(Optional.empty());
 
-        var response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer).build());
+        var response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer)
+                .introMessage("Tôi muốn tham gia lịch tập cuối tuần.").build());
 
         assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.PENDING);
+        assertThat(response.getIntroMessage()).isEqualTo("Tôi muốn tham gia lịch tập cuối tuần.");
+        assertThat(response.getRequestedAt()).isNotNull();
         verify(conversationSync, never()).sync(any(), any());
     }
 

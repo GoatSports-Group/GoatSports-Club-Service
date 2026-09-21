@@ -12,6 +12,8 @@ public class ClubMemberResponseCommand {
     private UUID userId;
     private ClubRole role;
     private ClubMemberStatus status;
+    private String introMessage;
+    private LocalDateTime requestedAt;
     private LocalDateTime joinedAt;
     private UUID respondedBy;
     private LocalDateTime respondedAt;

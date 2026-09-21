@@ -7,4 +7,5 @@ import java.util.UUID;
 public class JoinClubCommand {
     private UUID clubId;
     private UUID userId;
+    private String introMessage;
 }

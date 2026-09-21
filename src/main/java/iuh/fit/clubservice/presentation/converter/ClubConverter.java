@@ -13,8 +13,9 @@ public class ClubConverter {
                 .city(request.getCity()).location(request.getLocation()).sportType(request.getSportType())
                 .privacy(request.getPrivacy()).approvalMode(request.getApprovalMode()).build();
     }
-    public JoinClubCommand toCommand(UUID clubId, UUID userId) {
-        return JoinClubCommand.builder().clubId(clubId).userId(userId).build();
+    public JoinClubCommand toCommand(UUID clubId, UUID userId, JoinClubRequest request) {
+        return JoinClubCommand.builder().clubId(clubId).userId(userId)
+                .introMessage(request == null ? null : request.getMessage()).build();
     }
     public RespondClubMemberCommand toCommand(UUID membershipId, UUID actorId, RespondClubMemberRequest request) {
         return RespondClubMemberCommand.builder().membershipId(membershipId).actorUserId(actorId)

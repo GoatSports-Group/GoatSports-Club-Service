@@ -86,8 +86,8 @@ public class ClubController {
 
     @PostMapping("/{clubId}/join") @ApiMessage("Gửi yêu cầu tham gia câu lạc bộ thành công")
     public ClubMemberResponseCommand join(@PathVariable UUID clubId,
-            @RequestBody(required = false) JoinClubRequest ignored) throws ServiceException {
-        return clubService.joinClub(converter.toCommand(clubId, requireUser()));
+            @Valid @RequestBody(required = false) JoinClubRequest request) throws ServiceException {
+        return clubService.joinClub(converter.toCommand(clubId, requireUser(), request));
     }
 
     @PutMapping("/{clubId}/members/{membershipId}/respond") @ApiMessage("Xử lý yêu cầu tham gia thành công")
