@@ -1,6 +1,7 @@
 package iuh.fit.clubservice.infrastructure;
 
 import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
+import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
@@ -56,12 +57,22 @@ public class DemoDataSeeder implements CommandLineRunner {
     private static final String HAI_DANG = "dang.trinhhai@goatsports.vn";
     private static final String THU_TRANG = "trang.lythu@goatsports.vn";
     private static final String BAO_NGOC = "ngoc.caobao@goatsports.vn";
+    private static final String VAN_AN = "an.nguyenvan@goatsports.vn";
+    private static final String MINH_QUAN = "quan.tranminh@goatsports.vn";
+    private static final String HOANG_NAM = "nam.lehoang@goatsports.vn";
+    private static final String GIA_HUY = "huy.phamgia@goatsports.vn";
+    private static final String TUAN_KIET = "kiet.dotuan@goatsports.vn";
+    private static final String VAN_MINH = "minh.nguyenvan@goatsports.vn";
+    private static final String HOANG_PHUC = "phuc.tranhoang@goatsports.vn";
+    private static final String MINH_DUC = "duc.ngominh@goatsports.vn";
 
-    private record MemberSeed(String email, ClubRole role) {}
+    private record MemberSeed(String email, ClubRole role, ClubMemberStatus status,
+                              String introMessage, int daysAgo) {}
 
     private record ClubSeed(String name, String ownerEmail, SportType sportType, String description,
                             String city, String location,
                             ClubPrivacy privacy, ClubApprovalMode approvalMode,
+                            List<String> tags, int winCount, int lossCount, int drawCount,
                             List<MemberSeed> members) {}
 
     private record ActivitySeed(String clubName, String title, String description,
@@ -70,32 +81,66 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private record RegistrationSeed(String email, String teamName) {}
 
+    private static MemberSeed active(String email, ClubRole role, int daysAgo) {
+        return new MemberSeed(email, role, ClubMemberStatus.ACTIVE, null, daysAgo);
+    }
+
+    private static MemberSeed pending(String email, String introMessage, int daysAgo) {
+        return new MemberSeed(email, ClubRole.MEMBER, ClubMemberStatus.PENDING, introMessage, daysAgo);
+    }
+
     private static final List<ClubSeed> CLUBS = List.of(
             new ClubSeed("CLB Bóng Đá Sài Gòn Phủi", HUY, SportType.FOOTBALL,
                     "Đá giao hữu sân 7 tối thứ 3 và thứ 6 hàng tuần tại Bình Thạnh. Ưu tiên anh em đi làm.",
                     "ho-chi-minh", "Quận Bình Thạnh, TP. Hồ Chí Minh",
                     ClubPrivacy.PUBLIC, ClubApprovalMode.MANUAL,
-                    List.of(new MemberSeed(HUY, ClubRole.OWNER),
-                            new MemberSeed(TUNG, ClubRole.ADMIN),
-                            new MemberSeed(NHAT_MINH, ClubRole.MEMBER),
-                            new MemberSeed(HAI_DANG, ClubRole.MEMBER))),
+                    List.of("Giao lưu", "Thi đấu", "Cộng đồng"), 12, 3, 3,
+                    List.of(active(HUY, ClubRole.OWNER, 180),
+                            active(TUNG, ClubRole.ADMIN, 175),
+                            active(NHAT_MINH, ClubRole.MEMBER, 160),
+                            active(HAI_DANG, ClubRole.MEMBER, 148),
+                            active(DUC_ANH, ClubRole.MEMBER, 126),
+                            active(VAN_MINH, ClubRole.MEMBER, 92),
+                            active(HOANG_PHUC, ClubRole.MEMBER, 64),
+                            active(MINH_DUC, ClubRole.MEMBER, 35),
+                            pending(VAN_AN, "Mình chơi vị trí tiền vệ, thường rảnh tối thứ 3 và thứ 6. Mong được tham gia tập thử cùng đội.", 1),
+                            pending(MINH_QUAN, "Mình đã chơi sân 7 khoảng ba năm và muốn tìm đội sinh hoạt ổn định tại Bình Thạnh.", 1),
+                            pending(HOANG_NAM, "Mình là thủ môn phong trào, có thể tham gia đều đặn các buổi tối trong tuần.", 2),
+                            pending(GIA_HUY, "Mình ưu tiên tinh thần fair-play, có kinh nghiệm đá giải phong trào và muốn đồng hành lâu dài.", 2),
+                            pending(TUAN_KIET, "Mình mới chuyển đến TP.HCM, muốn làm quen đội và tham gia các buổi giao hữu cuối tuần.", 3))),
 
             new ClubSeed("CLB Cầu Lông Phú Nhuận", KHANH_LINH, SportType.BADMINTON,
                     "Sinh hoạt sáng thứ 7 và chủ nhật, có HLV hướng dẫn cho người mới.",
                     "ho-chi-minh", "Quận Phú Nhuận, TP. Hồ Chí Minh",
                     ClubPrivacy.PUBLIC, ClubApprovalMode.AUTO,
-                    List.of(new MemberSeed(KHANH_LINH, ClubRole.OWNER),
-                            new MemberSeed(THU_TRANG, ClubRole.MEMBER),
-                            new MemberSeed(BAO_NGOC, ClubRole.MEMBER)))
+                    List.of("Người mới", "Kỹ thuật", "Cuối tuần"), 9, 3, 2,
+                    List.of(active(KHANH_LINH, ClubRole.OWNER, 150),
+                            active(THU_TRANG, ClubRole.MEMBER, 122),
+                            active(BAO_NGOC, ClubRole.MEMBER, 118),
+                            active(VAN_AN, ClubRole.MEMBER, 84),
+                            active(HOANG_NAM, ClubRole.MEMBER, 55),
+                            active(TUAN_KIET, ClubRole.MEMBER, 28)))
     );
 
     private static final List<ActivitySeed> ACTIVITIES = List.of(
             new ActivitySeed("CLB Bóng Đá Sài Gòn Phủi", "Đá giao hữu tuần này",
                     "Tập trung trước 30 phút để khởi động. Mang cả áo sáng và áo tối.",
                     "Sân Thể Thao Bình Thạnh", 3, LocalTime.of(19, 0), 2, HUY),
+            new ActivitySeed("CLB Bóng Đá Sài Gòn Phủi", "Tập chiến thuật chuyển trạng thái",
+                    "Rèn pressing, thoát pressing và chuyển đổi nhanh theo đội hình sân 7.",
+                    "Sân Thể Thao Bình Thạnh", 6, LocalTime.of(19, 30), 2, TUNG),
+            new ActivitySeed("CLB Bóng Đá Sài Gòn Phủi", "Giao lưu nội bộ cuối tuần",
+                    "Chia đội cân bằng và thi đấu ba hiệp. Thành viên đăng ký trước một ngày.",
+                    "Sân Thể Thao Bình Thạnh", 9, LocalTime.of(17, 30), 2, HUY),
             new ActivitySeed("CLB Cầu Lông Phú Nhuận", "Buổi tập kỹ thuật đập cầu",
                     "HLV hướng dẫn nhóm mới, ai có vợt riêng thì mang theo.",
-                    "Trung Tâm Cầu Lông Phú Nhuận", 5, LocalTime.of(8, 0), 2, KHANH_LINH)
+                    "Trung Tâm Cầu Lông Phú Nhuận", 5, LocalTime.of(8, 0), 2, KHANH_LINH),
+            new ActivitySeed("CLB Cầu Lông Phú Nhuận", "Giao lưu đôi nam nữ",
+                    "Ghép cặp luân phiên theo trình độ, ưu tiên thành viên mới tham gia.",
+                    "Trung Tâm Cầu Lông Phú Nhuận", 8, LocalTime.of(7, 30), 2, KHANH_LINH),
+            new ActivitySeed("CLB Cầu Lông Phú Nhuận", "Kiểm tra trình độ thành viên mới",
+                    "Đánh giá kỹ thuật cơ bản để xếp nhóm tập phù hợp cho tháng tiếp theo.",
+                    "Trung Tâm Cầu Lông Phú Nhuận", 12, LocalTime.of(8, 30), 2, KHANH_LINH)
     );
 
     private static final String TOURNAMENT_NAME = "Giải Bóng Đá Phong Trào Sài Gòn Mở Rộng 2026";
@@ -113,8 +158,10 @@ public class DemoDataSeeder implements CommandLineRunner {
     public void run(String... args) {
         int clubs = 0;
         int members = 0;
+        int tags = 0;
         for (ClubSeed club : CLUBS) {
             clubs += insertClub(club);
+            tags += insertTags(club);
             for (MemberSeed member : club.members()) {
                 members += insertMember(club, member);
             }
@@ -128,20 +175,22 @@ public class DemoDataSeeder implements CommandLineRunner {
         for (RegistrationSeed registration : REGISTRATIONS) {
             registrations += insertRegistration(registration);
         }
-        log.info("Dữ liệu mẫu: {} CLB, {} thành viên, {} hoạt động, {} giải đấu, {} đăng ký"
+        log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký"
                         + " (bỏ qua bản ghi đã có)",
-                clubs, members, activities, tournaments, registrations);
+                clubs, tags, members, activities, tournaments, registrations);
     }
 
     private int insertClub(ClubSeed seed) {
-        return entityManager.createNativeQuery("""
+        int matches = seed.winCount() + seed.lossCount() + seed.drawCount();
+        double winRate = matches == 0 ? 0D : (double) seed.winCount() / matches;
+        int inserted = entityManager.createNativeQuery("""
                         insert into clubs (club_id, name, description, sport_type, owner_id, city, location,
                                            approval_mode, privacy, conversation_id, active,
                                            win_count, loss_count, draw_count, match_count, win_rate,
                                            created_at, created_by, updated_at, updated_by)
                         select :clubId, :name, :description, :sportType, :ownerId, :city, :location,
                                :approvalMode, :privacy, :conversationId, true,
-                               0, 0, 0, 0, 0,
+                               :winCount, :lossCount, :drawCount, :matchCount, :winRate,
                                now(), 'demo-seed', now(), 'demo-seed'
                         where not exists (select 1 from clubs where club_id = :clubId)
                         """)
@@ -154,12 +203,75 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("ownerId", userId(seed.ownerEmail()))
                 .setParameter("approvalMode", seed.approvalMode().name())
                 .setParameter("privacy", seed.privacy().name())
+                .setParameter("winCount", seed.winCount())
+                .setParameter("lossCount", seed.lossCount())
+                .setParameter("drawCount", seed.drawCount())
+                .setParameter("matchCount", matches)
+                .setParameter("winRate", winRate)
                 // Cung quy uoc voi social-service nen CLB tro dung toi nhom chat da seed ben do.
                 .setParameter("conversationId", id("conversation", id("club", seed.name()).toString()))
                 .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                        update clubs
+                        set win_count = :winCount, loss_count = :lossCount, draw_count = :drawCount,
+                            match_count = :matchCount, win_rate = :winRate,
+                            updated_at = now(), updated_by = 'demo-seed'
+                        where club_id = :clubId and created_by = 'demo-seed'
+                        """)
+                .setParameter("clubId", id("club", seed.name()))
+                .setParameter("winCount", seed.winCount())
+                .setParameter("lossCount", seed.lossCount())
+                .setParameter("drawCount", seed.drawCount())
+                .setParameter("matchCount", matches)
+                .setParameter("winRate", winRate)
+                .executeUpdate();
+        return inserted;
+    }
+
+    private int insertTags(ClubSeed seed) {
+        int inserted = 0;
+        for (int index = 0; index < seed.tags().size(); index++) {
+            inserted += entityManager.createNativeQuery("""
+                            insert into club_tags (club_id, display_order, tag)
+                            select :clubId, :displayOrder, :tag
+                            where exists (select 1 from clubs where club_id = :clubId)
+                              and not exists (
+                                  select 1 from club_tags
+                                  where club_id = :clubId and tag = :tag)
+                            on conflict do nothing
+                            """)
+                    .setParameter("clubId", id("club", seed.name()))
+                    .setParameter("displayOrder", index)
+                    .setParameter("tag", seed.tags().get(index))
+                    .executeUpdate();
+        }
+        return inserted;
     }
 
     private int insertMember(ClubSeed club, MemberSeed member) {
+        if (member.status() == ClubMemberStatus.PENDING) {
+            return entityManager.createNativeQuery("""
+                            insert into club_members (membership_id, club_id, user_id, role, status,
+                                                      intro_message, applied_at,
+                                                      created_at, created_by, updated_at, updated_by)
+                            select :membershipId, :clubId, :userId, :role, 'PENDING',
+                                   :introMessage, :appliedAt,
+                                   now(), 'demo-seed', now(), 'demo-seed'
+                            where not exists (
+                                select 1 from club_members
+                                where membership_id = :membershipId
+                                   or (club_id = :clubId and user_id = :userId))
+                            """)
+                    .setParameter("membershipId", id("membership", club.name() + "|" + member.email()))
+                    .setParameter("clubId", id("club", club.name()))
+                    .setParameter("userId", userId(member.email()))
+                    .setParameter("role", member.role().name())
+                    .setParameter("introMessage", member.introMessage())
+                    .setParameter("appliedAt", LocalDateTime.now().minusDays(member.daysAgo()))
+                    .executeUpdate();
+        }
+
         return entityManager.createNativeQuery("""
                         insert into club_members (membership_id, club_id, user_id, role, status,
                                                   joined_at, responded_by, responded_at,
@@ -167,20 +279,23 @@ public class DemoDataSeeder implements CommandLineRunner {
                         select :membershipId, :clubId, :userId, :role, 'ACTIVE',
                                :joinedAt, :ownerId, :joinedAt,
                                now(), 'demo-seed', now(), 'demo-seed'
-                        where not exists (select 1 from club_members where membership_id = :membershipId)
+                        where not exists (
+                            select 1 from club_members
+                            where membership_id = :membershipId
+                               or (club_id = :clubId and user_id = :userId))
                         """)
                 .setParameter("membershipId", id("membership", club.name() + "|" + member.email()))
                 .setParameter("clubId", id("club", club.name()))
                 .setParameter("userId", userId(member.email()))
                 .setParameter("role", member.role().name())
-                .setParameter("joinedAt", LocalDateTime.now().minusDays(20))
+                .setParameter("joinedAt", LocalDateTime.now().minusDays(member.daysAgo()))
                 .setParameter("ownerId", userId(club.ownerEmail()))
                 .executeUpdate();
     }
 
     private int insertActivity(ActivitySeed seed) {
         LocalDateTime startAt = LocalDate.now().plusDays(seed.daysFromNow()).atTime(seed.startTime());
-        return entityManager.createNativeQuery("""
+        int inserted = entityManager.createNativeQuery("""
                         insert into club_activities (activity_id, club_id, title, description, venue_id,
                                                      start_at, end_at, created_by_user_id,
                                                      created_at, created_by, updated_at, updated_by)
@@ -199,6 +314,19 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .setParameter("endAt", startAt.plusHours(seed.hours()))
                 .setParameter("creatorId", userId(seed.creatorEmail()))
                 .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                        update club_activities
+                        set description = :description, start_at = :startAt, end_at = :endAt,
+                            updated_at = now(), updated_by = 'demo-seed'
+                        where activity_id = :activityId and created_by = 'demo-seed'
+                        """)
+                .setParameter("activityId", id("activity", seed.clubName() + "|" + seed.title()))
+                .setParameter("description", seed.description())
+                .setParameter("startAt", startAt)
+                .setParameter("endAt", startAt.plusHours(seed.hours()))
+                .executeUpdate();
+        return inserted;
     }
 
     private int insertTournament() {
