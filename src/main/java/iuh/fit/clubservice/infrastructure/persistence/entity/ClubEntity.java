@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -37,6 +39,13 @@ public class ClubEntity extends BaseEntity {
 
     @Column(name = "location")
     private String location;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "club_tags", joinColumns = @JoinColumn(name = "club_id"))
+    @OrderColumn(name = "display_order")
+    @Column(name = "tag", nullable = false, length = 24)
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "sport_type", nullable = false)

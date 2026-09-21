@@ -127,6 +127,7 @@ public class ClubController {
         return clubService.updateClub(UpdateClubCommand.builder()
                 .clubId(clubId).actorUserId(requireUser()).name(request.getName())
                 .description(request.getDescription()).logoUrl(request.getLogoUrl())
+                .city(request.getCity()).location(request.getLocation()).tags(request.getTags())
                 .privacy(request.getPrivacy()).approvalMode(request.getApprovalMode()).build());
     }
 

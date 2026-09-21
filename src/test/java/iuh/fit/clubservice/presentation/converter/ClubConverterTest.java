@@ -9,6 +9,7 @@ import iuh.fit.clubservice.presentation.request.CreateClubRequest;
 import iuh.fit.clubservice.presentation.request.JoinClubRequest;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +26,7 @@ class ClubConverterTest {
                 .description("Cộng đồng cuối tuần")
                 .city("ho-chi-minh")
                 .location("Quận 7, TP. Hồ Chí Minh")
+                .tags(List.of("Giao lưu", "Thi đấu"))
                 .sportType(SportType.BADMINTON)
                 .privacy(ClubPrivacy.PUBLIC)
                 .approvalMode(ClubApprovalMode.AUTO)
@@ -35,6 +37,7 @@ class ClubConverterTest {
         assertThat(command.getOwnerId()).isEqualTo(ownerId);
         assertThat(command.getCity()).isEqualTo("ho-chi-minh");
         assertThat(command.getLocation()).isEqualTo("Quận 7, TP. Hồ Chí Minh");
+        assertThat(command.getTags()).containsExactly("Giao lưu", "Thi đấu");
     }
 
     @Test

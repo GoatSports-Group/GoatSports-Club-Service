@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +57,7 @@ public class ClubServiceImpl implements ClubService {
                 .logoUrl(command.getLogoUrl())
                 .city(normalize(command.getCity()))
                 .location(normalize(command.getLocation()))
+                .tags(normalizeTags(command.getTags()))
                 .sportType(command.getSportType())
                 .privacy(command.getPrivacy() == null ? ClubPrivacy.PUBLIC : command.getPrivacy())
                 .approvalMode(command.getApprovalMode() == null ? ClubApprovalMode.AUTO : command.getApprovalMode())
@@ -224,6 +227,9 @@ public class ClubServiceImpl implements ClubService {
         if (command.getName() != null) club.setName(command.getName().trim());
         if (command.getDescription() != null) club.setDescription(command.getDescription());
         if (command.getLogoUrl() != null) club.setLogoUrl(command.getLogoUrl());
+        if (command.getCity() != null) club.setCity(normalize(command.getCity()));
+        if (command.getLocation() != null) club.setLocation(normalize(command.getLocation()));
+        if (command.getTags() != null) club.setTags(normalizeTags(command.getTags()));
         if (command.getPrivacy() != null) club.setPrivacy(command.getPrivacy());
         if (command.getApprovalMode() != null) club.setApprovalMode(command.getApprovalMode());
         Club saved = clubRepository.save(club);
@@ -334,6 +340,16 @@ public class ClubServiceImpl implements ClubService {
     }
 
     private String normalize(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) return List.of();
+        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
+        tags.stream()
+                .map(this::normalize)
+                .filter(java.util.Objects::nonNull)
+                .forEach(tag -> unique.putIfAbsent(tag.toLowerCase(Locale.ROOT), tag));
+        return unique.values().stream().limit(5).toList();
+    }
 
     @Override
     public List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status) {
@@ -482,7 +498,7 @@ public class ClubServiceImpl implements ClubService {
     private ClubResponseCommand toResponse(Club c) {
         return ClubResponseCommand.builder()
                 .clubId(c.getClubId()).ownerId(c.getOwnerId()).name(c.getName()).description(c.getDescription())
-                .logoUrl(c.getLogoUrl()).city(c.getCity()).location(c.getLocation())
+                .logoUrl(c.getLogoUrl()).city(c.getCity()).location(c.getLocation()).tags(c.getTags())
                 .sportType(c.getSportType()).privacy(c.getPrivacy())
                 .approvalMode(c.getApprovalMode()).conversationId(c.getConversationId()).active(c.getActive())
                 .winCount(c.getWinCount()).lossCount(c.getLossCount()).drawCount(c.getDrawCount())

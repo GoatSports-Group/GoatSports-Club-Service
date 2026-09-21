@@ -10,7 +10,8 @@ public class ClubConverter {
     public CreateClubCommand toCommand(UUID ownerId, CreateClubRequest request) {
         return CreateClubCommand.builder().ownerId(ownerId).name(request.getName())
                 .description(request.getDescription()).logoUrl(request.getLogoUrl())
-                .city(request.getCity()).location(request.getLocation()).sportType(request.getSportType())
+                .city(request.getCity()).location(request.getLocation()).tags(request.getTags())
+                .sportType(request.getSportType())
                 .privacy(request.getPrivacy()).approvalMode(request.getApprovalMode()).build();
     }
     public JoinClubCommand toCommand(UUID clubId, UUID userId, JoinClubRequest request) {

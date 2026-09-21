@@ -6,6 +6,8 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -18,10 +20,10 @@ public class Club extends BaseEntity {
     private String name;
     private String description;
     private String logoUrl;
-    /** Ma tinh/thanh de loc, vi du "ho-chi-minh". */
     private String city;
-    /** Dong dia diem hien thi, vi du "Quan 7, TP. Ho Chi Minh". */
     private String location;
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
     private SportType sportType;
     private UUID ownerId;
     private ClubApprovalMode approvalMode;

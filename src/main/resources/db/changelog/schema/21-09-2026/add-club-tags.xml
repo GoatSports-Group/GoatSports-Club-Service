@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+
+    <changeSet id="1790000000000-1" author="codex">
+        <createTable tableName="club_tags">
+            <column name="club_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tag" type="VARCHAR(24)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="club_tags" columnNames="club_id, display_order"
+                       constraintName="pk_club_tags"/>
+        <addForeignKeyConstraint baseTableName="club_tags" baseColumnNames="club_id"
+                                 referencedTableName="clubs" referencedColumnNames="club_id"
+                                 constraintName="fk_club_tags_club" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="club_tags" columnNames="club_id, tag"
+                             constraintName="uk_club_tags_club_tag"/>
+    </changeSet>
+</databaseChangeLog>

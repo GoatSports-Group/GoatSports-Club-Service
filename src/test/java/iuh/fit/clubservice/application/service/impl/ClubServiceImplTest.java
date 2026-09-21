@@ -95,13 +95,15 @@ class ClubServiceImplTest {
     @DisplayName("tạo câu lạc bộ thì đồng bộ chat nhóm và lưu lại mã cuộc trò chuyện")
     void createClubSyncsConversation() {
         service.createClub(CreateClubCommand.builder()
-                .ownerId(ownerId).name("  CLB Sài Gòn  ").sportType(SportType.FOOTBALL).build());
+                .ownerId(ownerId).name("  CLB Sài Gòn  ").sportType(SportType.FOOTBALL)
+                .tags(List.of(" Giao lưu ", "Thi đấu", "giao LƯU")).build());
 
         ArgumentCaptor<Club> captor = ArgumentCaptor.forClass(Club.class);
         verify(conversationSync).sync(any(), any());
         verify(clubRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
         assertThat(captor.getAllValues()).anySatisfy(saved ->
                 assertThat(saved.getConversationId()).isEqualTo(conversationId));
+        assertThat(captor.getAllValues().getFirst().getTags()).containsExactly("Giao lưu", "Thi đấu");
     }
 
     @Test
