@@ -12,4 +12,5 @@
     <include file="/db/changelog/schema/21-09-2026/add-club-member-request.xml"/>
     <include file="/db/changelog/schema/21-09-2026/add-club-tags.xml"/>
     <include file="/db/changelog/schema/22-09-2026/add-club-banner.xml"/>
+    <include file="/db/changelog/schema/22-09-2026/add-club-photos.xml"/>
 </databaseChangeLog>

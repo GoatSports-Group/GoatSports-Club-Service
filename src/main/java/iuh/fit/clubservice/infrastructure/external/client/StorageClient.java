@@ -27,5 +27,6 @@ public interface StorageClient {
     String getFileUrl(@RequestParam String key);
 
     record FileMoveRequest(String tempKey) { }
-    record MoveFileRequest(List<FileMoveRequest> requests, String idempotencyKey) { }
+
+    record MoveFileRequest(List<FileMoveRequest> requests, String correlationId) { }
 }
