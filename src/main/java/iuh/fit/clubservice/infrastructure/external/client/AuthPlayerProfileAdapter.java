@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
+import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
 import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +21,9 @@ public class AuthPlayerProfileAdapter implements PlayerProfileProvider {
     public List<ScoutingCandidateView> findScoutingCandidates(
             SportType sportType, double latitude, double longitude, double radiusKm, int limit) {
         try {
-            List<AuthClient.ScoutingCandidateView> candidates =
+            BaseResponse<List<AuthClient.ScoutingCandidateView>> response =
                     authClient.findScoutingCandidates(sportType, latitude, longitude, radiusKm, limit);
+            List<AuthClient.ScoutingCandidateView> candidates = response == null ? null : response.getData();
             if (candidates == null) return List.of();
             return candidates.stream()
                     .map(candidate -> new ScoutingCandidateView(

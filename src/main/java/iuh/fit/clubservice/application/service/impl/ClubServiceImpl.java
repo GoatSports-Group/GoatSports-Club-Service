@@ -527,6 +527,7 @@ public class ClubServiceImpl implements ClubService {
     public List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status) {
         return memberRepository.findByUserIdAndStatus(userId, status).stream()
                 .map(member -> clubRepository.findById(member.getClubId())
+                        .filter(club -> !isDisbanded(club))
                         .map(club -> MyClubMembershipResponseCommand.builder()
                                 .membershipId(member.getMembershipId())
                                 .role(member.getRole())
@@ -542,9 +543,7 @@ public class ClubServiceImpl implements ClubService {
 
     @Override
     public List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit) {
-        List<UUID> clubIds = memberRepository.findByUserIdAndStatus(userId, ClubMemberStatus.ACTIVE).stream()
-                .map(ClubMember::getClubId)
-                .toList();
+        List<UUID> clubIds = activeClubIdsForUser(userId);
         // Lay tu bay gio tro di: hoat dong da qua khong con de lam gi o man hinh "sap toi".
         return activityRepository.findUpcomingByClubIds(clubIds, LocalDateTime.now()).stream()
                 .limit(limit <= 0 ? 10 : limit)
@@ -554,11 +553,18 @@ public class ClubServiceImpl implements ClubService {
 
     @Override
     public Page<ClubActivityResponseCommand> getMyUpcomingActivitiesPage(UUID userId, Pageable pageable) {
-        List<UUID> clubIds = memberRepository.findByUserIdAndStatus(userId, ClubMemberStatus.ACTIVE).stream()
-                .map(ClubMember::getClubId)
-                .toList();
+        List<UUID> clubIds = activeClubIdsForUser(userId);
         return activityRepository.findUpcomingByClubIds(clubIds, LocalDateTime.now(), pageable)
                 .map(this::toResponse);
+    }
+
+    private List<UUID> activeClubIdsForUser(UUID userId) {
+        return memberRepository.findByUserIdAndStatus(userId, ClubMemberStatus.ACTIVE).stream()
+                .map(ClubMember::getClubId)
+                .filter(clubId -> clubRepository.findById(clubId)
+                        .map(club -> !isDisbanded(club))
+                        .orElse(false))
+                .toList();
     }
 
     @Override

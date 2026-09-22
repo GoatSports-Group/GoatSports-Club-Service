@@ -28,7 +28,7 @@ public interface AuthClient {
     BaseResponse<List<SportProfileView>> getSportProfiles(@PathVariable UUID userId);
 
     @GetMapping("/scouting")
-    List<ScoutingCandidateView> findScoutingCandidates(
+    BaseResponse<List<ScoutingCandidateView>> findScoutingCandidates(
             @RequestParam SportType sportType,
             @RequestParam double latitude,
             @RequestParam double longitude,

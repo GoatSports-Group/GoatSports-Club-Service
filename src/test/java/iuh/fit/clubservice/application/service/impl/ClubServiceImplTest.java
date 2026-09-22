@@ -750,6 +750,25 @@ class ClubServiceImplTest {
     }
 
     @Test
+    @DisplayName("CLB da giai tan khong con xuat hien trong danh sach CLB cua nguoi dung")
+    void disbandedClubIsExcludedFromMyMemberships() {
+        ClubMember membership = ClubMember.builder()
+                .membershipId(membershipId)
+                .clubId(clubId)
+                .userId(memberUserId)
+                .role(ClubRole.MEMBER)
+                .status(ClubMemberStatus.ACTIVE)
+                .build();
+        when(memberRepository.findByUserIdAndStatus(memberUserId, ClubMemberStatus.ACTIVE))
+                .thenReturn(List.of(membership));
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
+
+        var result = service.getMyMemberships(memberUserId, ClubMemberStatus.ACTIVE);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("Chu CLB giai tan: doi trang thai, huy loi moi treo va bao cho thanh vien")
     void ownerDisbandsClubAndCancelsPendingInvitations() throws Exception {
         Club club = club(ClubApprovalMode.AUTO);
