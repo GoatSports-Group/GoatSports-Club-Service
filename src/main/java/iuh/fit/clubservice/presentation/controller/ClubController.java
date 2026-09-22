@@ -5,6 +5,8 @@ import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
+import iuh.fit.clubservice.application.dto.response.ScoutedPlayerResponseCommand;
+import iuh.fit.clubservice.application.service.ClubScoutingService;
 import iuh.fit.clubservice.application.service.ClubService;
 import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
@@ -27,6 +29,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ClubController {
     private final ClubService clubService;
+    private final ClubScoutingService scoutingService;
     private final ClubConverter converter;
     private final CurrentUserProvider currentUserProvider;
 
@@ -99,6 +102,15 @@ public class ClubController {
 
     @DeleteMapping("/{clubId}/leave") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leave(@PathVariable UUID clubId) throws ServiceException { clubService.leaveClub(clubId, requireUser()); }
+
+    @GetMapping("/{clubId}/scouting") @ApiMessage("Tìm người chơi phù hợp thành công")
+    public List<ScoutedPlayerResponseCommand> scouting(
+            @PathVariable UUID clubId,
+            @RequestParam(required = false) Double radiusKm,
+            @RequestParam(required = false) Integer limit
+    ) throws ServiceException {
+        return scoutingService.findCandidates(clubId, requireUser(), radiusKm, limit);
+    }
 
     @PatchMapping("/{clubId}/owner") @ApiMessage("Chuyển quyền sở hữu câu lạc bộ thành công")
     public ClubMemberResponseCommand transferOwnership(@PathVariable UUID clubId,

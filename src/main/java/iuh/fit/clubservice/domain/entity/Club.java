@@ -34,6 +34,8 @@ public class Club extends BaseEntity {
     private Boolean active;
     private LocalDateTime disbandedAt;
     private UUID disbandedBy;
+    private Double latitude;
+    private Double longitude;
     private Integer winCount;
     private Integer lossCount;
     private Integer drawCount;

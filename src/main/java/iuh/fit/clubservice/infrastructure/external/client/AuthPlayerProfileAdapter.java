@@ -17,6 +17,25 @@ public class AuthPlayerProfileAdapter implements PlayerProfileProvider {
     private final AuthClient authClient;
 
     @Override
+    public List<ScoutingCandidateView> findScoutingCandidates(
+            SportType sportType, double latitude, double longitude, double radiusKm, int limit) {
+        try {
+            List<AuthClient.ScoutingCandidateView> candidates =
+                    authClient.findScoutingCandidates(sportType, latitude, longitude, radiusKm, limit);
+            if (candidates == null) return List.of();
+            return candidates.stream()
+                    .map(candidate -> new ScoutingCandidateView(
+                            candidate.userId(), candidate.username(), candidate.fullName(), candidate.avatarUrl(),
+                            candidate.skillLevel(), candidate.eloRating(), candidate.matchCount(),
+                            candidate.winRate(), candidate.playRadiusKm(), candidate.distanceKm()))
+                    .toList();
+        } catch (Exception exception) {
+            log.warn("Khong lay duoc ung vien scouting: {}", exception.getMessage());
+            return List.of();
+        }
+    }
+
+    @Override
     public Optional<PlayerProfileView> findProfile(UUID userId, SportType sportType) {
         try {
             AuthClient.UserDetailView user = unwrap(authClient.getUserById(userId));

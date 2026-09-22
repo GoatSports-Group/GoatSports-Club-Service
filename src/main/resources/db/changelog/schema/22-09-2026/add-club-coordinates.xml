@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+    <!--
+        Toa do cua CLB de scouting tim nguoi choi theo khoang cach.
+        De nullable co chu y: CLB chua dat toa do thi lay tam tinh/thanh tu cot city,
+        nho vay moi CLB dang ton tai dung duoc ngay ma khong can sua lai tung cai.
+    -->
+    <changeSet id="22-09-2026-add-club-coordinates" author="goatsports">
+        <addColumn tableName="clubs">
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

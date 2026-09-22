@@ -905,4 +905,42 @@ class ClubServiceImplTest {
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("đã giải tán");
     }
+
+    @Test
+    @DisplayName("Quan ly CLB roi CLB binh thuong nhu thanh vien")
+    void activeManagerCanLeaveClub() throws Exception {
+        UUID managerId = UUID.randomUUID();
+        ClubMember manager = ClubMember.builder().membershipId(UUID.randomUUID()).clubId(clubId)
+                .userId(managerId).role(ClubRole.ADMIN).status(ClubMemberStatus.ACTIVE).build();
+        when(memberRepository.findByClubIdAndUserId(clubId, managerId)).thenReturn(Optional.of(manager));
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+
+        service.leaveClub(clubId, managerId);
+
+        assertThat(manager.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+    }
+
+    @Test
+    @DisplayName("Chu CLB trao quyen xong thi roi CLB duoc")
+    void ownerCanLeaveAfterTransferringOwnership() throws Exception {
+        Club club = club(ClubApprovalMode.AUTO);
+        ClubMember successor = ClubMember.builder().membershipId(membershipId).clubId(clubId)
+                .userId(memberUserId).role(ClubRole.MEMBER).status(ClubMemberStatus.ACTIVE).build();
+        ClubMember owner = ClubMember.builder().membershipId(UUID.randomUUID()).clubId(clubId)
+                .userId(ownerId).role(ClubRole.OWNER).status(ClubMemberStatus.ACTIVE).build();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(successor));
+        when(memberRepository.findByClubIdAndUserId(clubId, ownerId)).thenReturn(Optional.of(owner));
+
+        assertThatThrownBy(() -> service.leaveClub(clubId, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("chuyển quyền sở hữu");
+
+        service.transferOwnership(clubId, membershipId, ownerId);
+        service.leaveClub(clubId, ownerId);
+
+        assertThat(owner.getRole()).isEqualTo(ClubRole.ADMIN);
+        assertThat(owner.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        assertThat(club.getOwnerId()).isEqualTo(memberUserId);
+    }
 }
