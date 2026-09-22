@@ -413,6 +413,28 @@ class ClubServiceImplTest {
     }
 
     @Test
+    @DisplayName("quản lý câu lạc bộ cập nhật được tỉnh thành và địa chỉ sinh hoạt")
+    void clubManagerCanUpdateCityAndLocation() throws ServiceException {
+        UUID adminUserId = UUID.randomUUID();
+        Club currentClub = club(ClubApprovalMode.AUTO);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(currentClub));
+        when(memberRepository.findByClubIdAndUserId(clubId, adminUserId)).thenReturn(Optional.of(
+                memberWithRole(UUID.randomUUID(), adminUserId, ClubRole.ADMIN)));
+
+        var response = service.updateClub(UpdateClubCommand.builder()
+                .clubId(clubId)
+                .actorUserId(adminUserId)
+                .city("  ho-chi-minh  ")
+                .location("  123 Nguyễn Văn Linh, Quận 7  ")
+                .build());
+
+        assertThat(response.getCity()).isEqualTo("ho-chi-minh");
+        assertThat(response.getLocation()).isEqualTo("123 Nguyễn Văn Linh, Quận 7");
+        assertThat(currentClub.getCity()).isEqualTo("ho-chi-minh");
+        assertThat(currentClub.getLocation()).isEqualTo("123 Nguyễn Văn Linh, Quận 7");
+    }
+
+    @Test
     @DisplayName("thanh vien thuong khong sua duoc cau lac bo")
     void plainMemberCannotUpdateClub() {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));

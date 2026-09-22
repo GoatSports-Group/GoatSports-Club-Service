@@ -21,7 +21,9 @@ public class UpdateClubRequest {
     private String logoUrl;
     @Size(max = 1000, message = "Đường dẫn ảnh bìa tối đa 1000 ký tự")
     private String bannerUrl;
+    @Size(max = 64, message = "Mã Tỉnh/Thành phố tối đa 64 ký tự")
     private String city;
+    @Size(max = 255, message = "Địa chỉ sinh hoạt tối đa 255 ký tự")
     private String location;
     @Size(max = 5, message = "Mỗi câu lạc bộ có tối đa 5 badge")
     private List<@jakarta.validation.constraints.NotBlank(message = "Badge không được để trống")
