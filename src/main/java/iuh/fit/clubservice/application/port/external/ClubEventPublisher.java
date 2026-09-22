@@ -18,4 +18,8 @@ public interface ClubEventPublisher {
     void invitationSent(Club club, ClubInvitation invitation);
 
     void invitationAnswered(Club club, ClubInvitation invitation, boolean accepted);
+
+    void clubDisbanded(Club club, UUID actorId, List<UUID> receiverIds);
+
+    void ownershipTransferred(Club club, UUID previousOwnerId, UUID newOwnerId);
 }

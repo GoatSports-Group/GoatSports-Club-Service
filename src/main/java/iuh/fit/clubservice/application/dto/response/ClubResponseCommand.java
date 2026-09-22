@@ -6,7 +6,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ClubResponseCommand {
     private UUID clubId;
     private UUID ownerId;
@@ -22,6 +26,7 @@ public class ClubResponseCommand {
     private ClubApprovalMode approvalMode;
     private UUID conversationId;
     private Boolean active;
+    private LocalDateTime disbandedAt;
     private Integer winCount;
     private Integer lossCount;
     private Integer drawCount;

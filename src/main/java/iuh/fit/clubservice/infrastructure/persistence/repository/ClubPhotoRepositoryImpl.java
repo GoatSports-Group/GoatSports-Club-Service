@@ -8,7 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 @RequiredArgsConstructor
@@ -23,7 +26,17 @@ public class ClubPhotoRepositoryImpl implements ClubPhotoRepository {
     }
 
     @Override
-    public List<ClubPhoto> findByClubId(UUID clubId) {
-        return jpaRepository.findByClubIdOrderByCreatedAtDesc(clubId).stream().map(mapper::toDomain).toList();
+    public Page<ClubPhoto> findByClubId(UUID clubId, Pageable pageable) {
+        return jpaRepository.findByClubId(clubId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<ClubPhoto> findById(UUID photoId) {
+        return jpaRepository.findById(photoId).map(mapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID photoId) {
+        jpaRepository.deleteById(photoId);
     }
 }

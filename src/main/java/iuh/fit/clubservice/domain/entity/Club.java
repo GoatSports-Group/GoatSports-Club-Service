@@ -6,6 +6,7 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +32,8 @@ public class Club extends BaseEntity {
     private ClubPrivacy privacy;
     private UUID conversationId;
     private Boolean active;
+    private LocalDateTime disbandedAt;
+    private UUID disbandedBy;
     private Integer winCount;
     private Integer lossCount;
     private Integer drawCount;

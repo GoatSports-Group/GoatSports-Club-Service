@@ -61,6 +61,18 @@ public class ClubMediaStorageAdapter implements ClubMediaStorage {
         return resolved;
     }
 
+    @Override
+    public void deleteByUrl(String publicUrl) throws ServiceException {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            throw new ServiceException("Đường dẫn ảnh câu lạc bộ không hợp lệ.");
+        }
+        try {
+            storageClient.deleteFileByUrl(publicUrl.trim());
+        } catch (RuntimeException exception) {
+            throw new ServiceException("Không thể xóa ảnh câu lạc bộ khỏi kho lưu trữ.");
+        }
+    }
+
     private List<String> resolveUrls(List<String> keys) throws ServiceException {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<String>> pendingUrls = keys.stream()

@@ -100,6 +100,17 @@ public class ClubController {
     @DeleteMapping("/{clubId}/leave") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leave(@PathVariable UUID clubId) throws ServiceException { clubService.leaveClub(clubId, requireUser()); }
 
+    @PatchMapping("/{clubId}/owner") @ApiMessage("Chuyển quyền sở hữu câu lạc bộ thành công")
+    public ClubMemberResponseCommand transferOwnership(@PathVariable UUID clubId,
+                                                       @RequestParam UUID membershipId) throws ServiceException {
+        return clubService.transferOwnership(clubId, membershipId, requireUser());
+    }
+
+    @PostMapping("/{clubId}/disband") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void disband(@PathVariable UUID clubId) throws ServiceException {
+        clubService.disbandClub(clubId, requireUser());
+    }
+
     @GetMapping("/{clubId}/members") @ApiMessage("Lấy danh sách thành viên thành công")
     public List<ClubMemberResponseCommand> members(@PathVariable UUID clubId) throws ServiceException {
         return clubService.getClubMembers(clubId, currentUserProvider.getCurrentUserId().orElse(null));

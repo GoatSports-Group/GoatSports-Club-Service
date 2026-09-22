@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -70,6 +71,12 @@ public class ClubEntity extends BaseEntity {
 
     @Column(name = "active")
     private Boolean active;
+
+    @Column(name = "disbanded_at")
+    private LocalDateTime disbandedAt;
+
+    @Column(name = "disbanded_by")
+    private UUID disbandedBy;
 
     @Column(name = "win_count", nullable = false)
     private Integer winCount;

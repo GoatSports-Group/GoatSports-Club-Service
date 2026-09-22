@@ -2,7 +2,6 @@ package iuh.fit.clubservice.infrastructure.external.kafka;
 
 import com.fasterxml.jackson.databind.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
-import iuh.fit.clubservice.application.service.ClubFeeService;
 import iuh.fit.clubservice.application.service.TournamentPaymentEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,7 +16,6 @@ import java.util.UUID;
 public class PaymentEventConsumer {
     private final ObjectMapper objectMapper;
     private final TournamentPaymentEventService service;
-    private final ClubFeeService clubFeeService;
 
     @KafkaListener(topics = "${payment.events.topic}", groupId = "${payment.events.club-group-id}")
     public void consume(String message) {
@@ -36,12 +34,6 @@ public class PaymentEventConsumer {
                 service.apply(uuid(payload, "paymentId"), uuid(payload, "payerId"), uuid(payload, "referenceId"),
                         payload.path("amount").asDouble(), payload.path("currency").asText(),
                         succeeded, paidAtValue);
-                return;
-            }
-            if ("CLUB_FEE".equals(referenceType)) {
-                clubFeeService.applyPayment(uuid(payload, "paymentId"), uuid(payload, "payerId"),
-                        uuid(payload, "referenceId"), payload.path("amount").asDouble(),
-                        payload.path("currency").asText(), succeeded, paidAtValue);
             }
         } catch (ServiceException exception) { throw new IllegalStateException(exception.getMessage(), exception); }
         catch (Exception exception) { throw new IllegalArgumentException("Payment event không đúng contract.", exception); }

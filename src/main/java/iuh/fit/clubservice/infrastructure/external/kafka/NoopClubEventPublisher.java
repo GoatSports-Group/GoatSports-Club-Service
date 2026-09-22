@@ -38,6 +38,14 @@ public class NoopClubEventPublisher {
             @Override
             public void membershipResponded(Club club, ClubMember member, boolean accepted) {
             }
+
+            @Override
+            public void clubDisbanded(Club club, UUID actorId, List<UUID> receiverIds) {
+            }
+
+            @Override
+            public void ownershipTransferred(Club club, UUID previousOwnerId, UUID newOwnerId) {
+            }
         };
     }
 }

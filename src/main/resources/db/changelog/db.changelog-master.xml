@@ -13,4 +13,6 @@
     <include file="/db/changelog/schema/21-09-2026/add-club-tags.xml"/>
     <include file="/db/changelog/schema/22-09-2026/add-club-banner.xml"/>
     <include file="/db/changelog/schema/22-09-2026/add-club-photos.xml"/>
+    <include file="/db/changelog/schema/22-09-2026/drop-club-fees.xml"/>
+    <include file="/db/changelog/schema/22-09-2026/add-club-disband.xml"/>
 </databaseChangeLog>

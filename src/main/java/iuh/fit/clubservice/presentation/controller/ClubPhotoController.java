@@ -10,6 +10,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,8 +27,10 @@ public class ClubPhotoController {
 
     @GetMapping
     @ApiMessage("Lấy thư viện ảnh câu lạc bộ thành công")
-    public List<ClubPhotoResponseCommand> getPhotos(@PathVariable UUID clubId) throws ServiceException {
-        return photoService.getPhotos(clubId);
+    public Page<ClubPhotoResponseCommand> getPhotos(@PathVariable UUID clubId,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
+            throws ServiceException {
+        return photoService.getPhotos(clubId, pageable);
     }
 
     @PostMapping
@@ -35,5 +41,13 @@ public class ClubPhotoController {
         UUID actorUserId = currentUserProvider.getCurrentUserId()
                 .orElseThrow(() -> new ServiceException("Bạn cần đăng nhập để đăng ảnh câu lạc bộ."));
         return photoService.addPhotos(clubId, actorUserId, request.getImageKeys());
+    }
+
+    @DeleteMapping("/{photoId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePhoto(@PathVariable UUID clubId, @PathVariable UUID photoId) throws ServiceException {
+        UUID actorUserId = currentUserProvider.getCurrentUserId()
+                .orElseThrow(() -> new ServiceException("Bạn cần đăng nhập để xóa ảnh câu lạc bộ."));
+        photoService.deletePhoto(clubId, photoId, actorUserId);
     }
 }

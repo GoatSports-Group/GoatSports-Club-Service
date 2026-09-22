@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+    <!--
+        Tinh nang phi cau lac bo bi loai bo khoi he thong.
+        Xoa bang thanh toan truoc vi no tham chieu club_fees.
+    -->
+    <changeSet id="22-09-2026-drop-club-fees" author="goatsports">
+        <dropTable tableName="club_fee_payments"/>
+        <dropTable tableName="club_fees"/>
+    </changeSet>
+</databaseChangeLog>

@@ -8,4 +8,6 @@ public interface ClubMediaStorage {
     String finalizeUpload(String value, String idempotencyKey) throws ServiceException;
 
     List<String> finalizeUploads(List<String> values, String idempotencyKey) throws ServiceException;
+
+    void deleteByUrl(String publicUrl) throws ServiceException;
 }

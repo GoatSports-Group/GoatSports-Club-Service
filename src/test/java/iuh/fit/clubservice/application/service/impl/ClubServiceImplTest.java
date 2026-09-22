@@ -30,6 +30,8 @@ import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.MatchStatus;
+import iuh.fit.clubservice.domain.enums.RegistrationStatus;
+import iuh.fit.clubservice.domain.enums.TournamentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -737,5 +739,170 @@ class ClubServiceImplTest {
         var page = service.getClubMatchesPage(clubId, PageRequest.of(0, 3));
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
+    }
+
+    private Club disbandedClub() {
+        Club club = club(ClubApprovalMode.AUTO);
+        club.setActive(false);
+        club.setDisbandedAt(LocalDateTime.now());
+        club.setDisbandedBy(ownerId);
+        return club;
+    }
+
+    @Test
+    @DisplayName("Chu CLB giai tan: doi trang thai, huy loi moi treo va bao cho thanh vien")
+    void ownerDisbandsClubAndCancelsPendingInvitations() throws Exception {
+        Club club = club(ClubApprovalMode.AUTO);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of());
+        when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE)).thenReturn(List.of(
+                ClubMember.builder().membershipId(membershipId).clubId(clubId).userId(memberUserId)
+                        .role(ClubRole.MEMBER).status(ClubMemberStatus.ACTIVE).build()));
+        ClubInvitation pending = ClubInvitation.builder().invitationId(UUID.randomUUID()).clubId(clubId)
+                .inviteeId(UUID.randomUUID()).invitedBy(ownerId).status(ClubInvitationStatus.PENDING).build();
+        when(invitationRepository.findByClubIdAndStatus(clubId, ClubInvitationStatus.PENDING))
+                .thenReturn(List.of(pending));
+
+        service.disbandClub(clubId, ownerId);
+
+        assertThat(club.getActive()).isFalse();
+        assertThat(club.getDisbandedAt()).isNotNull();
+        assertThat(club.getDisbandedBy()).isEqualTo(ownerId);
+        assertThat(pending.getStatus()).isEqualTo(ClubInvitationStatus.CANCELLED);
+        verify(eventPublisher).clubDisbanded(any(), eq(ownerId), eq(List.of(memberUserId)));
+    }
+
+    @Test
+    @DisplayName("Chi chu CLB moi duoc giai tan, quan tri vien thi khong")
+    void adminCannotDisbandClub() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+
+        assertThatThrownBy(() -> service.disbandClub(clubId, memberUserId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Chỉ chủ câu lạc bộ");
+        verify(eventPublisher, never()).clubDisbanded(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Dang co nghia vu o giai chua ket thuc thi khong duoc giai tan")
+    void cannotDisbandWhileCommittedToLiveTournament() {
+        UUID tournamentId = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of(
+                TournamentRegistration.builder().registrationId(UUID.randomUUID()).tournamentId(tournamentId)
+                        .clubId(clubId).status(RegistrationStatus.CONFIRMED).build()));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
+                Tournament.builder().tournamentId(tournamentId).name("Giải mùa thu")
+                        .status(TournamentStatus.IN_PROGRESS).build()));
+
+        assertThatThrownBy(() -> service.disbandClub(clubId, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Giải mùa thu");
+        verify(clubRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Giai tan roi thi giai da ket thuc khong con can tro nua")
+    void canDisbandWhenOnlyFinishedTournamentsRemain() throws Exception {
+        UUID tournamentId = UUID.randomUUID();
+        Club club = club(ClubApprovalMode.AUTO);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of(
+                TournamentRegistration.builder().registrationId(UUID.randomUUID()).tournamentId(tournamentId)
+                        .clubId(clubId).status(RegistrationStatus.CONFIRMED).build()));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
+                Tournament.builder().tournamentId(tournamentId).name("Giải mùa xuân")
+                        .status(TournamentStatus.COMPLETED).build()));
+        when(invitationRepository.findByClubIdAndStatus(clubId, ClubInvitationStatus.PENDING))
+                .thenReturn(List.of());
+
+        service.disbandClub(clubId, ownerId);
+
+        assertThat(club.getActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CLB da giai tan thi moi thao tac ghi deu bi tu choi")
+    void disbandedClubRejectsEveryWrite() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
+
+        assertThatThrownBy(() -> service.joinClub(JoinClubCommand.builder().clubId(clubId)
+                .userId(memberUserId).build()))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
+        assertThatThrownBy(() -> service.updateClub(UpdateClubCommand.builder().clubId(clubId)
+                .actorUserId(ownerId).name("Tên mới").build()))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
+        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
+        assertThatThrownBy(() -> service.removeMember(clubId, membershipId, false, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
+        assertThatThrownBy(() -> service.disbandClub(clubId, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
+    }
+
+    @Test
+    @DisplayName("CLB da giai tan van xem duoc chi tiet de hien trang thai")
+    void disbandedClubIsStillReadable() throws Exception {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
+
+        var response = service.getClubDetails(clubId);
+
+        assertThat(response.getActive()).isFalse();
+        assertThat(response.getDisbandedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Chuyen quyen so huu: chu moi len OWNER, chu cu xuong ADMIN, chat doi chu theo")
+    void ownerTransfersOwnershipAndPreviousOwnerBecomesAdmin() throws Exception {
+        Club club = club(ClubApprovalMode.AUTO);
+        ClubMember successor = ClubMember.builder().membershipId(membershipId).clubId(clubId)
+                .userId(memberUserId).role(ClubRole.MEMBER).status(ClubMemberStatus.ACTIVE).build();
+        ClubMember previousOwner = ClubMember.builder().membershipId(UUID.randomUUID()).clubId(clubId)
+                .userId(ownerId).role(ClubRole.OWNER).status(ClubMemberStatus.ACTIVE).build();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(successor));
+        when(memberRepository.findByClubIdAndUserId(clubId, ownerId)).thenReturn(Optional.of(previousOwner));
+
+        var response = service.transferOwnership(clubId, membershipId, ownerId);
+
+        assertThat(response.getRole()).isEqualTo(ClubRole.OWNER);
+        assertThat(previousOwner.getRole()).isEqualTo(ClubRole.ADMIN);
+        assertThat(club.getOwnerId()).isEqualTo(memberUserId);
+        verify(conversationSync).sync(any(), any());
+        verify(eventPublisher).ownershipTransferred(any(), eq(ownerId), eq(memberUserId));
+    }
+
+    @Test
+    @DisplayName("Khong chuyen quyen so huu cho thanh vien khong con hoat dong")
+    void cannotTransferOwnershipToInactiveMember() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(
+                ClubMember.builder().membershipId(membershipId).clubId(clubId).userId(memberUserId)
+                        .role(ClubRole.MEMBER).status(ClubMemberStatus.LEFT).build()));
+
+        assertThatThrownBy(() -> service.transferOwnership(clubId, membershipId, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("đang hoạt động");
+        verify(eventPublisher, never()).ownershipTransferred(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Chi chu CLB moi duoc chuyen quyen so huu")
+    void nonOwnerCannotTransferOwnership() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+
+        assertThatThrownBy(() -> service.transferOwnership(clubId, membershipId, memberUserId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Chỉ chủ câu lạc bộ");
+    }
+
+    @Test
+    @DisplayName("CLB da giai tan thi khong chuyen quyen so huu duoc nua")
+    void disbandedClubRejectsOwnershipTransfer() {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
+
+        assertThatThrownBy(() -> service.transferOwnership(clubId, membershipId, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("đã giải tán");
     }
 }

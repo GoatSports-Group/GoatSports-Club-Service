@@ -89,6 +89,23 @@ public class ClubEventKafkaPublisher implements ClubEventPublisher {
         });
     }
 
+    @Override
+    public void clubDisbanded(Club club, UUID actorId, List<UUID> receiverIds) {
+        if (receiverIds == null) return;
+        for (UUID receiverId : receiverIds) {
+            if (receiverId == null || receiverId.equals(actorId)) continue;
+            emit("club.disbanded.v1", club, receiverId, actorId, payload ->
+                    payload.put("disbandedAt", String.valueOf(club.getDisbandedAt())));
+        }
+    }
+
+    @Override
+    public void ownershipTransferred(Club club, UUID previousOwnerId, UUID newOwnerId) {
+        if (newOwnerId == null) return;
+        emit("club.ownership.transferred.v1", club, newOwnerId, previousOwnerId, payload ->
+                payload.put("previousOwnerId", String.valueOf(previousOwnerId)));
+    }
+
     private void emit(String eventType, Club club, UUID receiverId, UUID actorId,
                       Consumer<ObjectNode> extraPayload) {
         try {

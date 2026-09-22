@@ -4,6 +4,7 @@ import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.infrastructure.config.StorageClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +26,9 @@ public interface StorageClient {
 
     @GetMapping
     String getFileUrl(@RequestParam String key);
+
+    @DeleteMapping("/by-url")
+    void deleteFileByUrl(@RequestParam String url);
 
     record FileMoveRequest(String tempKey) { }
 

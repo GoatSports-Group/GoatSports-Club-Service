@@ -45,6 +45,11 @@ public interface ClubService {
 
     void leaveClub(UUID clubId, UUID userId) throws ServiceException;
 
+    void disbandClub(UUID clubId, UUID actorUserId) throws ServiceException;
+
+    ClubMemberResponseCommand transferOwnership(UUID clubId, UUID membershipId, UUID actorUserId)
+            throws ServiceException;
+
     List<ClubMemberResponseCommand> getClubMembers(UUID clubId, UUID requesterId) throws ServiceException;
 
     Page<ClubMemberResponseCommand> getClubMembersPage(UUID clubId, UUID requesterId,
