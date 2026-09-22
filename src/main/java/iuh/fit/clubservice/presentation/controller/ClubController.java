@@ -160,7 +160,7 @@ public class ClubController {
             @Valid @RequestBody UpdateClubRequest request) throws ServiceException {
         return clubService.updateClub(UpdateClubCommand.builder()
                 .clubId(clubId).actorUserId(requireUser()).name(request.getName())
-                .description(request.getDescription()).logoUrl(request.getLogoUrl())
+                .description(request.getDescription()).logoUrl(request.getLogoUrl()).bannerUrl(request.getBannerUrl())
                 .city(request.getCity()).location(request.getLocation()).tags(request.getTags())
                 .privacy(request.getPrivacy()).approvalMode(request.getApprovalMode()).build());
     }

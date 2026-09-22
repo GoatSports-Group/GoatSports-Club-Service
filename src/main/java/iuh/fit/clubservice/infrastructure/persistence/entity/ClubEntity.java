@@ -34,6 +34,9 @@ public class ClubEntity extends BaseEntity {
     @Column(name = "logo_url", length = 1000)
     private String logoUrl;
 
+    @Column(name = "banner_url", length = 1000)
+    private String bannerUrl;
+
     @Column(name = "city", length = 64)
     private String city;
 

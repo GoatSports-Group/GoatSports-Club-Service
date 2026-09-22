@@ -19,6 +19,7 @@ public class UpdateClubCommand {
     private String name;
     private String description;
     private String logoUrl;
+    private String bannerUrl;
     private String city;
     private String location;
     private List<String> tags;

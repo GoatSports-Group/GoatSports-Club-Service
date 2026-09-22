@@ -7,6 +7,7 @@ import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
+import iuh.fit.clubservice.application.port.external.ClubMediaStorage;
 import iuh.fit.clubservice.application.port.persistence.*;
 import iuh.fit.clubservice.application.service.ClubService;
 import iuh.fit.clubservice.domain.entity.*;
@@ -38,6 +39,7 @@ public class ClubServiceImpl implements ClubService {
     private final TournamentRepository tournamentRepository;
     private final ClubConversationSync conversationSync;
     private final ClubEventPublisher eventPublisher;
+    private final ClubMediaStorage mediaStorage;
 
     @Override
     public Page<ClubResponseCommand> searchClubs(SportType sportType, String city, String keyword,
@@ -308,7 +310,12 @@ public class ClubServiceImpl implements ClubService {
         assertManager(club, command.getActorUserId());
         if (command.getName() != null) club.setName(command.getName().trim());
         if (command.getDescription() != null) club.setDescription(command.getDescription());
-        if (command.getLogoUrl() != null) club.setLogoUrl(command.getLogoUrl());
+        if (command.getLogoUrl() != null) {
+            club.setLogoUrl(mediaStorage.finalizeUpload(command.getLogoUrl(), "club-logo:" + club.getClubId()));
+        }
+        if (command.getBannerUrl() != null) {
+            club.setBannerUrl(mediaStorage.finalizeUpload(command.getBannerUrl(), "club-banner:" + club.getClubId()));
+        }
         if (command.getCity() != null) club.setCity(normalize(command.getCity()));
         if (command.getLocation() != null) club.setLocation(normalize(command.getLocation()));
         if (command.getTags() != null) club.setTags(normalizeTags(command.getTags()));
@@ -589,7 +596,7 @@ public class ClubServiceImpl implements ClubService {
     private ClubResponseCommand toResponse(Club c) {
         return ClubResponseCommand.builder()
                 .clubId(c.getClubId()).ownerId(c.getOwnerId()).name(c.getName()).description(c.getDescription())
-                .logoUrl(c.getLogoUrl()).city(c.getCity()).location(c.getLocation()).tags(c.getTags())
+                .logoUrl(c.getLogoUrl()).bannerUrl(c.getBannerUrl()).city(c.getCity()).location(c.getLocation()).tags(c.getTags())
                 .sportType(c.getSportType()).privacy(c.getPrivacy())
                 .approvalMode(c.getApprovalMode()).conversationId(c.getConversationId()).active(c.getActive())
                 .winCount(c.getWinCount()).lossCount(c.getLossCount()).drawCount(c.getDrawCount())

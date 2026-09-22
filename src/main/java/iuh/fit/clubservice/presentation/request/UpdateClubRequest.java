@@ -17,7 +17,10 @@ public class UpdateClubRequest {
     private String name;
     @Size(max = 2000, message = "Mô tả tối đa 2000 ký tự")
     private String description;
+    @Size(max = 1000, message = "Đường dẫn ảnh đại diện tối đa 1000 ký tự")
     private String logoUrl;
+    @Size(max = 1000, message = "Đường dẫn ảnh bìa tối đa 1000 ký tự")
+    private String bannerUrl;
     private String city;
     private String location;
     @Size(max = 5, message = "Mỗi câu lạc bộ có tối đa 5 badge")

@@ -122,7 +122,11 @@ public class DemoDataSeeder implements CommandLineRunner {
                             active(BAO_NGOC, ClubRole.MEMBER, 118),
                             active(VAN_AN, ClubRole.MEMBER, 84),
                             active(HOANG_NAM, ClubRole.MEMBER, 55),
-                            active(TUAN_KIET, ClubRole.MEMBER, 28)))
+                            active(TUAN_KIET, ClubRole.MEMBER, 28),
+                            active(GIA_HUY, ClubRole.MEMBER, 24),
+                            active(MINH_QUAN, ClubRole.MEMBER, 21),
+                            active(MINH_DUC, ClubRole.MEMBER, 18),
+                            active(HOANG_PHUC, ClubRole.MEMBER, 12)))
     );
 
     private static final List<ActivitySeed> ACTIVITIES = List.of(
@@ -241,20 +245,24 @@ public class DemoDataSeeder implements CommandLineRunner {
             fixtures += insertCompletedBadmintonFixture(match.key(), match.opponentEmail(), "Vòng bảng",
                     index + 1, match.clubScore(), match.opponentScore(), match.daysAgo());
         }
-        log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký, {} trận đấu"
+        int enrichedClubs = enrichUserDemoClub("Dayend");
+        log.info("Dữ liệu mẫu: {} CLB, {} thẻ, {} thành viên/yêu cầu, {} hoạt động, {} giải đấu, {} đăng ký, {} trận đấu, {} CLB người dùng được làm đầy"
                         + " (bỏ qua bản ghi đã có)",
-                clubs, tags, members, activities, tournaments, registrations, fixtures);
+                clubs, tags, members, activities, tournaments, registrations, fixtures, enrichedClubs);
     }
 
     private int insertClub(ClubSeed seed) {
         int matches = seed.winCount() + seed.lossCount() + seed.drawCount();
         double winRate = matches == 0 ? 0D : (double) seed.winCount() / matches;
         int inserted = entityManager.createNativeQuery("""
-                        insert into clubs (club_id, name, description, sport_type, owner_id, city, location,
+                        insert into clubs (club_id, name, description, logo_url, banner_url,
+                                           sport_type, owner_id, city, location,
                                            approval_mode, privacy, conversation_id, active,
                                            win_count, loss_count, draw_count, match_count, win_rate,
                                            created_at, created_by, updated_at, updated_by)
-                        select :clubId, :name, :description, :sportType, :ownerId, :city, :location,
+                        select :clubId, :name, :description, '/assets/images/goat.png',
+                               '/assets/images/default-banner-light.png',
+                               :sportType, :ownerId, :city, :location,
                                :approvalMode, :privacy, :conversationId, true,
                                :winCount, :lossCount, :drawCount, :matchCount, :winRate,
                                now(), 'demo-seed', now(), 'demo-seed'
@@ -282,6 +290,8 @@ public class DemoDataSeeder implements CommandLineRunner {
                         update clubs
                         set win_count = :winCount, loss_count = :lossCount, draw_count = :drawCount,
                             match_count = :matchCount, win_rate = :winRate,
+                            logo_url = coalesce(logo_url, '/assets/images/goat.png'),
+                            banner_url = coalesce(banner_url, '/assets/images/default-banner-light.png'),
                             conversation_id = coalesce(conversation_id, :conversationId),
                             updated_at = now(), updated_by = 'demo-seed'
                         where club_id = :clubId and created_by = 'demo-seed'
@@ -662,5 +672,162 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private UUID completedBadmintonRegistrationId(String key) {
         return id("registration", BADMINTON_TOURNAMENT_NAME + "|" + key);
+    }
+
+    /**
+     * Làm đầy CLB người dùng đang dùng để duyệt giao diện dev mà không thay đổi dữ liệu production.
+     * Tất cả câu lệnh đều idempotent và chỉ chạy khi app.demo-data.enabled=true.
+     */
+    @SuppressWarnings("unchecked")
+    private int enrichUserDemoClub(String clubName) {
+        List<Object[]> clubs = entityManager.createNativeQuery("""
+                        select club_id, owner_id from clubs
+                        where lower(name) = lower(:clubName) and active = true
+                        """)
+                .setParameter("clubName", clubName)
+                .getResultList();
+
+        for (Object[] row : clubs) {
+            UUID clubId = (UUID) row[0];
+            UUID ownerId = (UUID) row[1];
+            entityManager.createNativeQuery("""
+                            update clubs
+                            set description = coalesce(nullif(description, ''),
+                                    'Kết nối những người cùng đam mê, rèn luyện đều đặn và tạo nên những trải nghiệm thể thao đáng nhớ.'),
+                                logo_url = coalesce(logo_url, '/assets/images/goat.png'),
+                                banner_url = coalesce(banner_url, '/assets/images/default-banner-light.png'),
+                                win_count = 2, loss_count = 0, draw_count = 1, match_count = 3,
+                                win_rate = 0.6667, updated_at = now(), updated_by = 'demo-seed'
+                            where club_id = :clubId
+                            """)
+                    .setParameter("clubId", clubId)
+                    .executeUpdate();
+
+            List<String> demoTags = List.of("Giao lưu", "Kỹ thuật", "Cuối tuần");
+            for (int index = 0; index < demoTags.size(); index++) {
+                entityManager.createNativeQuery("""
+                                insert into club_tags (club_id, display_order, tag)
+                                select :clubId, :displayOrder, :tag
+                                where not exists (select 1 from club_tags where club_id = :clubId and tag = :tag)
+                                on conflict do nothing
+                                """)
+                        .setParameter("clubId", clubId)
+                        .setParameter("displayOrder", 20 + index)
+                        .setParameter("tag", demoTags.get(index))
+                        .executeUpdate();
+            }
+
+            List<String> demoMembers = List.of(HAI_DANG, NHAT_MINH, DUC_ANH, THU_TRANG,
+                    BAO_NGOC, VAN_AN, HOANG_NAM, TUAN_KIET);
+            for (int index = 0; index < demoMembers.size(); index++) {
+                String email = demoMembers.get(index);
+                entityManager.createNativeQuery("""
+                                insert into club_members (membership_id, club_id, user_id, role, status,
+                                                          joined_at, responded_by, responded_at,
+                                                          created_at, created_by, updated_at, updated_by)
+                                select :membershipId, :clubId, :userId, 'MEMBER', 'ACTIVE',
+                                       :joinedAt, :ownerId, :joinedAt,
+                                       now(), 'demo-seed', now(), 'demo-seed'
+                                where not exists (select 1 from club_members where club_id = :clubId and user_id = :userId)
+                                """)
+                        .setParameter("membershipId", id("membership", clubId + "|" + email))
+                        .setParameter("clubId", clubId)
+                        .setParameter("userId", userId(email))
+                        .setParameter("joinedAt", LocalDateTime.now().minusDays(50L - index))
+                        .setParameter("ownerId", ownerId)
+                        .executeUpdate();
+            }
+
+            seedUserClubActivities(clubId, ownerId);
+            seedUserClubTournament(clubId, ownerId, clubName);
+        }
+        return clubs.size();
+    }
+
+    private void seedUserClubActivities(UUID clubId, UUID ownerId) {
+        List<String[]> activities = List.of(
+                new String[]{"Buổi tập kỹ thuật cuối tuần", "Ôn kỹ thuật nền tảng và thi đấu luân phiên theo trình độ."},
+                new String[]{"Giao lưu nội bộ", "Ghép cặp cân bằng để mọi thành viên đều có thời gian thi đấu."},
+                new String[]{"Kiểm tra trình độ thành viên", "Đánh giá kỹ thuật để sắp xếp nhóm tập phù hợp cho tháng tới."}
+        );
+        for (int index = 0; index < activities.size(); index++) {
+            String[] activity = activities.get(index);
+            LocalDateTime startAt = LocalDate.now().plusDays(4L + index * 4L).atTime(8, 0);
+            entityManager.createNativeQuery("""
+                            insert into club_activities (activity_id, club_id, title, description,
+                                                         start_at, end_at, created_by_user_id,
+                                                         created_at, created_by, updated_at, updated_by)
+                            select :activityId, :clubId, :title, :description,
+                                   :startAt, :endAt, :ownerId,
+                                   now(), 'demo-seed', now(), 'demo-seed'
+                            where not exists (select 1 from club_activities where activity_id = :activityId)
+                            """)
+                    .setParameter("activityId", id("activity", clubId + "|" + activity[0]))
+                    .setParameter("clubId", clubId)
+                    .setParameter("title", activity[0])
+                    .setParameter("description", activity[1])
+                    .setParameter("startAt", startAt)
+                    .setParameter("endAt", startAt.plusHours(2))
+                    .setParameter("ownerId", ownerId)
+                    .executeUpdate();
+        }
+    }
+
+    private void seedUserClubTournament(UUID clubId, UUID ownerId, String clubName) {
+        UUID registrationId = id("registration", BADMINTON_TOURNAMENT_NAME + "|club|" + clubId);
+        entityManager.createNativeQuery("""
+                        insert into tournament_registrations (registration_id, tournament_id, player_id, club_id,
+                                                              team_name, type, status, registered_by,
+                                                              registered_at, confirmed_at,
+                                                              created_at, created_by, updated_at, updated_by)
+                        select :registrationId, :tournamentId, :ownerId, :clubId,
+                               :teamName, 'CLUB', 'CONFIRMED', :ownerId,
+                               :registeredAt, :registeredAt,
+                               now(), 'demo-seed', now(), 'demo-seed'
+                        where not exists (select 1 from tournament_registrations where registration_id = :registrationId)
+                        """)
+                .setParameter("registrationId", registrationId)
+                .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                .setParameter("ownerId", ownerId)
+                .setParameter("clubId", clubId)
+                .setParameter("teamName", clubName)
+                .setParameter("registeredAt", LocalDateTime.now().minusDays(90))
+                .executeUpdate();
+
+        List<Object[]> matches = List.of(
+                new Object[]{"smash", completedBadmintonRegistrationId(THU_TRANG), 21, 18, 7},
+                new Object[]{"shuttle", completedBadmintonRegistrationId(BAO_NGOC), 19, 19, 14},
+                new Object[]{"rackets", completedBadmintonRegistrationId(VAN_AN), 21, 15, 21}
+        );
+        for (int index = 0; index < matches.size(); index++) {
+            Object[] match = matches.get(index);
+            UUID fixtureId = id("fixture", BADMINTON_TOURNAMENT_NAME + "|" + clubId + "|" + match[0]);
+            int score1 = (int) match[2];
+            int score2 = (int) match[3];
+            LocalDateTime playedAt = LocalDateTime.now().minusDays((int) match[4]).withHour(8).withMinute(0)
+                    .withSecond(0).withNano(0);
+            entityManager.createNativeQuery("""
+                            insert into tournament_fixtures (fixture_id, tournament_id, round_name, round_number,
+                                                             match_number, registration1_id, registration2_id,
+                                                             score1, score2, winner_registration_id, status,
+                                                             created_at, created_by, updated_at, updated_by)
+                            select :fixtureId, :tournamentId, 'Vòng bảng', 1,
+                                   :matchNumber, :registration1Id, :registration2Id,
+                                   :score1, :score2,
+                                   case when :score1 = :score2 then null
+                                        when :score1 > :score2 then :registration1Id else :registration2Id end,
+                                   'COMPLETED', :playedAt, 'demo-seed', :playedAt, 'demo-seed'
+                            where not exists (select 1 from tournament_fixtures where fixture_id = :fixtureId)
+                            """)
+                    .setParameter("fixtureId", fixtureId)
+                    .setParameter("tournamentId", id("tournament", BADMINTON_TOURNAMENT_NAME))
+                    .setParameter("matchNumber", 100 + index)
+                    .setParameter("registration1Id", registrationId)
+                    .setParameter("registration2Id", match[1])
+                    .setParameter("score1", score1)
+                    .setParameter("score2", score2)
+                    .setParameter("playedAt", playedAt)
+                    .executeUpdate();
+        }
     }
 }

@@ -9,6 +9,7 @@ import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.dto.request.CreateClubActivityCommand;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
+import iuh.fit.clubservice.application.port.external.ClubMediaStorage;
 import iuh.fit.clubservice.application.port.persistence.ClubActivityRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubInvitationRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
@@ -67,6 +68,7 @@ class ClubServiceImplTest {
     @Mock private TournamentRepository tournamentRepository;
     @Mock private ClubConversationSync conversationSync;
     @Mock private ClubEventPublisher eventPublisher;
+    @Mock private ClubMediaStorage mediaStorage;
 
     private ClubServiceImpl service;
 
@@ -77,11 +79,11 @@ class ClubServiceImplTest {
     private final UUID memberUserId = UUID.randomUUID();
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws ServiceException {
         service = new ClubServiceImpl(
                 clubRepository, memberRepository, activityRepository,
                 invitationRepository, tournamentRegistrationRepository, tournamentFixtureRepository,
-                tournamentRepository, conversationSync, eventPublisher
+                tournamentRepository, conversationSync, eventPublisher, mediaStorage
         );
 
         when(clubRepository.save(any())).thenAnswer(call -> {
@@ -96,6 +98,7 @@ class ClubServiceImplTest {
         });
         when(memberRepository.findByClubIdAndStatus(any(), eq(ClubMemberStatus.ACTIVE))).thenReturn(List.of());
         when(conversationSync.sync(any(), any())).thenReturn(Optional.of(conversationId));
+        when(mediaStorage.finalizeUpload(any(), any())).thenAnswer(call -> call.getArgument(0));
     }
 
     private Club club(ClubApprovalMode mode) {
@@ -384,6 +387,27 @@ class ClubServiceImplTest {
 
         assertThat(response.getName()).isEqualTo("CLB doi ten");
         verify(conversationSync).sync(any(), any());
+    }
+
+    @Test
+    @DisplayName("cap nhat logo va banner thi xac nhan tep tam truoc khi luu")
+    void updatingClubMediaFinalizesTemporaryUploads() throws ServiceException {
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(mediaStorage.finalizeUpload("temp/clubs/logos/logo.webp", "club-logo:" + clubId))
+                .thenReturn("https://cdn.goatsports.test/clubs/logos/logo.webp");
+        when(mediaStorage.finalizeUpload("temp/clubs/banners/banner.webp", "club-banner:" + clubId))
+                .thenReturn("https://cdn.goatsports.test/clubs/banners/banner.webp");
+
+        var response = service.updateClub(UpdateClubCommand.builder()
+                .clubId(clubId).actorUserId(ownerId)
+                .logoUrl("temp/clubs/logos/logo.webp")
+                .bannerUrl("temp/clubs/banners/banner.webp")
+                .build());
+
+        assertThat(response.getLogoUrl()).isEqualTo("https://cdn.goatsports.test/clubs/logos/logo.webp");
+        assertThat(response.getBannerUrl()).isEqualTo("https://cdn.goatsports.test/clubs/banners/banner.webp");
+        verify(mediaStorage).finalizeUpload("temp/clubs/logos/logo.webp", "club-logo:" + clubId);
+        verify(mediaStorage).finalizeUpload("temp/clubs/banners/banner.webp", "club-banner:" + clubId);
     }
 
     @Test
