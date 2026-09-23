@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.exception;
 
+import iuh.fit.clubservice.application.exception.UnauthenticatedException;
 import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(UnauthenticatedException.class)
+    ResponseEntity<BaseResponse<Object>> unauthenticated(UnauthenticatedException exception) {
+        return error(HttpStatus.UNAUTHORIZED, exception.getMessage(), "Chưa đăng nhập");
+    }
+
     @ExceptionHandler(ServiceException.class)
     ResponseEntity<BaseResponse<Object>> service(ServiceException exception) {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage(), "Yêu cầu không hợp lệ");

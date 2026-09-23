@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.presentation.controller;
 
+import iuh.fit.clubservice.application.exception.UnauthenticatedException;
 import iuh.fit.clubservice.application.dto.response.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
@@ -103,6 +104,6 @@ public class TournamentController {
     }
 
     private UUID requireUser() throws ServiceException {
-        return currentUserProvider.getCurrentUserId().orElseThrow(() -> new ServiceException("Bạn cần đăng nhập để thực hiện thao tác này."));
+        return currentUserProvider.getCurrentUserId().orElseThrow(() -> new UnauthenticatedException("Bạn cần đăng nhập để thực hiện thao tác này."));
     }
 }

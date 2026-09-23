@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.presentation.controller;
 
+import iuh.fit.clubservice.application.exception.UnauthenticatedException;
 import iuh.fit.clubservice.application.dto.response.ClubPhotoResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
@@ -39,7 +40,7 @@ public class ClubPhotoController {
     public List<ClubPhotoResponseCommand> addPhotos(@PathVariable UUID clubId,
             @Valid @RequestBody AddClubPhotosRequest request) throws ServiceException {
         UUID actorUserId = currentUserProvider.getCurrentUserId()
-                .orElseThrow(() -> new ServiceException("Bạn cần đăng nhập để đăng ảnh câu lạc bộ."));
+                .orElseThrow(() -> new UnauthenticatedException("Bạn cần đăng nhập để đăng ảnh câu lạc bộ."));
         return photoService.addPhotos(clubId, actorUserId, request.getImageKeys());
     }
 
@@ -47,7 +48,7 @@ public class ClubPhotoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePhoto(@PathVariable UUID clubId, @PathVariable UUID photoId) throws ServiceException {
         UUID actorUserId = currentUserProvider.getCurrentUserId()
-                .orElseThrow(() -> new ServiceException("Bạn cần đăng nhập để xóa ảnh câu lạc bộ."));
+                .orElseThrow(() -> new UnauthenticatedException("Bạn cần đăng nhập để xóa ảnh câu lạc bộ."));
         photoService.deletePhoto(clubId, photoId, actorUserId);
     }
 }
