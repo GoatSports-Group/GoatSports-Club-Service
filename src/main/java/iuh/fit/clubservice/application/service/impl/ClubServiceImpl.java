@@ -651,6 +651,20 @@ public class ClubServiceImpl implements ClubService {
                 .ifPresent(club -> eventPublisher.invitationAnswered(club, invitation, false));
     }
 
+    @Override
+    @Transactional
+    public void cancelInvitation(UUID clubId, UUID invitationId, UUID actorUserId) throws ServiceException {
+        Club club = requireActiveClub(clubId);
+        assertManager(club, actorUserId);
+        ClubInvitation invitation = invitationRepository.findById(invitationId)
+                .filter(item -> item.getClubId().equals(clubId))
+                .orElseThrow(() -> new ServiceException("Không tìm thấy lời mời."));
+        if (invitation.getStatus() != ClubInvitationStatus.PENDING) {
+            throw new ServiceException("Người chơi đã trả lời lời mời này.");
+        }
+        closeInvitation(invitation, ClubInvitationStatus.CANCELLED);
+    }
+
     private ClubInvitation requirePendingInvitation(UUID invitationId, UUID userId) throws ServiceException {
         ClubInvitation invitation = invitationRepository.findById(invitationId)
                 .orElseThrow(() -> new ServiceException("Không tìm thấy lời mời."));

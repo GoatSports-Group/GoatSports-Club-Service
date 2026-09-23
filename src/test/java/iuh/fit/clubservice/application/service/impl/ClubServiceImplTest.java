@@ -984,4 +984,55 @@ class ClubServiceImplTest {
         assertThat(owner.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
         assertThat(club.getOwnerId()).isEqualTo(memberUserId);
     }
+
+    @Test
+    @DisplayName("quản lý thu hồi lời mời đang chờ thì lời mời chuyển sang CANCELLED")
+    void managerCancelsPendingInvitation() throws ServiceException {
+        UUID invitationId = UUID.randomUUID();
+        ClubInvitation invitation = pendingInvitation(invitationId, memberUserId, ownerId);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(invitationRepository.findById(invitationId)).thenReturn(Optional.of(invitation));
+
+        service.cancelInvitation(clubId, invitationId, ownerId);
+
+        assertThat(invitation.getStatus()).isEqualTo(ClubInvitationStatus.CANCELLED);
+        assertThat(invitation.getRespondedAt()).isNotNull();
+        verify(invitationRepository).save(invitation);
+    }
+
+    @Test
+    @DisplayName("không thu hồi được lời mời người chơi đã trả lời hoặc của CLB khác")
+    void cannotCancelAnsweredOrForeignInvitation() {
+        UUID answeredId = UUID.randomUUID();
+        ClubInvitation answered = pendingInvitation(answeredId, memberUserId, ownerId);
+        answered.setStatus(ClubInvitationStatus.ACCEPTED);
+        UUID foreignId = UUID.randomUUID();
+        ClubInvitation foreign = pendingInvitation(foreignId, memberUserId, ownerId);
+        foreign.setClubId(UUID.randomUUID());
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(invitationRepository.findById(answeredId)).thenReturn(Optional.of(answered));
+        when(invitationRepository.findById(foreignId)).thenReturn(Optional.of(foreign));
+
+        assertThatThrownBy(() -> service.cancelInvitation(clubId, answeredId, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã trả lời");
+        assertThatThrownBy(() -> service.cancelInvitation(clubId, foreignId, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("Không tìm thấy");
+        verify(invitationRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("thành viên thường không thu hồi được lời mời")
+    void plainMemberCannotCancelInvitation() {
+        UUID invitationId = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.of(
+                ClubMember.builder().membershipId(membershipId).clubId(clubId).userId(memberUserId)
+                        .role(ClubRole.MEMBER).status(ClubMemberStatus.ACTIVE).build()));
+        when(invitationRepository.findById(invitationId))
+                .thenReturn(Optional.of(pendingInvitation(invitationId, UUID.randomUUID(), ownerId)));
+
+        assertThatThrownBy(() -> service.cancelInvitation(clubId, invitationId, memberUserId))
+                .isInstanceOf(ServiceException.class);
+        verify(invitationRepository, never()).save(any());
+    }
 }

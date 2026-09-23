@@ -1,6 +1,7 @@
 package iuh.fit.clubservice.presentation.controller;
 
 import iuh.fit.clubservice.application.dto.response.*;
+import iuh.fit.clubservice.application.dto.request.ScoutingQueryCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
@@ -12,6 +13,7 @@ import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseComm
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.application.dto.response.ClubInvitationResponseCommand;
 import iuh.fit.clubservice.presentation.request.InviteClubMemberRequest;
+import iuh.fit.clubservice.domain.enums.SkillLevel;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.ClubConverter;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.*;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import java.time.DayOfWeek;
 import java.util.*;
 
 @RestController
@@ -107,9 +110,40 @@ public class ClubController {
     public List<ScoutedPlayerResponseCommand> scouting(
             @PathVariable UUID clubId,
             @RequestParam(required = false) Double radiusKm,
-            @RequestParam(required = false) Integer limit
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Set<SkillLevel> skillLevels,
+            @RequestParam(required = false) String position,
+            @RequestParam(required = false) DayOfWeek availableOn
     ) throws ServiceException {
-        return scoutingService.findCandidates(clubId, requireUser(), radiusKm, limit);
+        return scoutingService.findCandidates(clubId, requireUser(),
+                new ScoutingQueryCommand(radiusKm, limit, skillLevels, position, availableOn));
+    }
+
+    @GetMapping("/{clubId}/scouting/shortlist") @ApiMessage("Lấy danh sách theo dõi thành công")
+    public List<ShortlistEntryResponseCommand> shortlist(@PathVariable UUID clubId) throws ServiceException {
+        return scoutingService.getShortlist(clubId, requireUser());
+    }
+
+    @PutMapping("/{clubId}/scouting/shortlist/{userId}") @ApiMessage("Đã lưu vào danh sách theo dõi")
+    public ShortlistEntryResponseCommand saveShortlistEntry(@PathVariable UUID clubId, @PathVariable UUID userId,
+            @Valid @RequestBody(required = false) SaveShortlistEntryRequest request) throws ServiceException {
+        return scoutingService.saveShortlistEntry(clubId, requireUser(), userId,
+                request == null ? null : request.getNote());
+    }
+
+    @DeleteMapping("/{clubId}/scouting/shortlist/{userId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeShortlistEntry(@PathVariable UUID clubId, @PathVariable UUID userId) throws ServiceException {
+        scoutingService.removeShortlistEntry(clubId, requireUser(), userId);
+    }
+
+    @GetMapping("/{clubId}/invitations") @ApiMessage("Lấy lời mời đã gửi thành công")
+    public List<SentInvitationResponseCommand> sentInvitations(@PathVariable UUID clubId) throws ServiceException {
+        return scoutingService.getSentInvitations(clubId, requireUser());
+    }
+
+    @PostMapping("/{clubId}/invitations/{invitationId}/cancel") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelInvitation(@PathVariable UUID clubId, @PathVariable UUID invitationId) throws ServiceException {
+        clubService.cancelInvitation(clubId, invitationId, requireUser());
     }
 
     @PatchMapping("/{clubId}/owner") @ApiMessage("Chuyển quyền sở hữu câu lạc bộ thành công")

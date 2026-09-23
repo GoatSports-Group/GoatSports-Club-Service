@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd"
+>
+    <changeSet id="23-09-2026-add-club-scouting-shortlist" author="goatsports">
+        <createTable tableName="club_scouting_shortlist">
+            <column name="entry_id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_club_scouting_shortlist"/>
+            </column>
+            <column name="club_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="note" type="VARCHAR(280)"/>
+            <column name="added_by" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="DATETIME"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+        </createTable>
+        <addUniqueConstraint tableName="club_scouting_shortlist" columnNames="club_id, user_id"
+                             constraintName="uk_club_scouting_shortlist_player"/>
+    </changeSet>
+</databaseChangeLog>

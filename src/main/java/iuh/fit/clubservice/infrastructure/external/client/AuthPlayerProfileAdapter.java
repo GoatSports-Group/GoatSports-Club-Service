@@ -1,15 +1,18 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
 import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
+import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
 import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Slf4j
 @Component
@@ -18,22 +21,30 @@ public class AuthPlayerProfileAdapter implements PlayerProfileProvider {
     private final AuthClient authClient;
 
     @Override
-    public List<ScoutingCandidateView> findScoutingCandidates(
-            SportType sportType, double latitude, double longitude, double radiusKm, int limit) {
+    public List<ScoutingCandidateView> findScoutingCandidates(ScoutingFilter filter) throws ServiceException {
+        return call(() -> authClient.findScoutingCandidates(
+                filter.sportType(), filter.latitude(), filter.longitude(), filter.radiusKm(), filter.limit(),
+                filter.skillLevels() == null || filter.skillLevels().isEmpty() ? null : filter.skillLevels(),
+                filter.position() == null || filter.position().isBlank() ? null : filter.position().trim(),
+                filter.availableOn()));
+    }
+
+    @Override
+    public List<ScoutingCandidateView> lookupScoutingProfiles(
+            SportType sportType, double latitude, double longitude, Collection<UUID> userIds) throws ServiceException {
+        if (userIds == null || userIds.isEmpty()) return List.of();
+        return call(() -> authClient.lookupScoutingProfiles(
+                new AuthClient.ScoutingLookup(sportType, latitude, longitude, List.copyOf(userIds))));
+    }
+
+    private List<ScoutingCandidateView> call(Supplier<BaseResponse<List<ScoutingCandidateView>>> request)
+            throws ServiceException {
         try {
-            BaseResponse<List<AuthClient.ScoutingCandidateView>> response =
-                    authClient.findScoutingCandidates(sportType, latitude, longitude, radiusKm, limit);
-            List<AuthClient.ScoutingCandidateView> candidates = response == null ? null : response.getData();
-            if (candidates == null) return List.of();
-            return candidates.stream()
-                    .map(candidate -> new ScoutingCandidateView(
-                            candidate.userId(), candidate.username(), candidate.fullName(), candidate.avatarUrl(),
-                            candidate.skillLevel(), candidate.eloRating(), candidate.matchCount(),
-                            candidate.winRate(), candidate.playRadiusKm(), candidate.distanceKm()))
-                    .toList();
-        } catch (Exception exception) {
-            log.warn("Khong lay duoc ung vien scouting: {}", exception.getMessage());
-            return List.of();
+            List<ScoutingCandidateView> players = unwrap(request.get());
+            return players == null ? List.of() : players;
+        } catch (RuntimeException exception) {
+            log.warn("Khong lay duoc ho so scouting: {}", exception.getMessage());
+            throw new ServiceException("Chưa tải được hồ sơ người chơi. Vui lòng thử lại sau.");
         }
     }
 

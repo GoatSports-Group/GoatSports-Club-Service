@@ -27,6 +27,8 @@ public interface ClubService {
 
     void declineInvitation(UUID invitationId, UUID userId) throws ServiceException;
 
+    void cancelInvitation(UUID clubId, UUID invitationId, UUID actorUserId) throws ServiceException;
+
     List<MyClubMembershipResponseCommand> getMyMemberships(UUID userId, ClubMemberStatus status);
 
     List<ClubActivityResponseCommand> getMyUpcomingActivities(UUID userId, int limit);

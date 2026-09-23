@@ -16,6 +16,8 @@ public interface ClubInvitationRepository {
 
     List<ClubInvitation> findByClubIdAndStatus(UUID clubId, ClubInvitationStatus status);
 
+    List<ClubInvitation> findRecentByClubId(UUID clubId, int limit);
+
     Optional<ClubInvitation> findByClubIdAndInviteeIdAndStatus(
             UUID clubId, UUID inviteeId, ClubInvitationStatus status);
 }

@@ -2,6 +2,7 @@ package iuh.fit.clubservice.infrastructure.persistence.repository.jpa;
 
 import iuh.fit.clubservice.domain.enums.ClubInvitationStatus;
 import iuh.fit.clubservice.infrastructure.persistence.entity.ClubInvitationEntity;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,6 +18,8 @@ public interface JpaClubInvitationRepository extends JpaRepository<ClubInvitatio
 
     List<ClubInvitationEntity> findByClubIdAndStatusOrderByCreatedAtDesc(
             UUID clubId, ClubInvitationStatus status);
+
+    List<ClubInvitationEntity> findByClubIdOrderByCreatedAtDesc(UUID clubId, Pageable pageable);
 
     Optional<ClubInvitationEntity> findByClubIdAndInviteeIdAndStatus(
             UUID clubId, UUID inviteeId, ClubInvitationStatus status);
