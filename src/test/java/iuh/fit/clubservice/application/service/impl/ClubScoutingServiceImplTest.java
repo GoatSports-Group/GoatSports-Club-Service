@@ -337,6 +337,22 @@ class ClubScoutingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Loi moi da nhan tra kem quan he hien tai: nguoi choi da la thanh vien")
+    void sentInvitationsCarryTheCurrentRelation() throws Exception {
+        UUID invitee = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club("ho-chi-minh")));
+        when(memberRepository.findByClubId(clubId)).thenReturn(List.of(member(invitee, ClubMemberStatus.ACTIVE)));
+        when(invitationRepository.findRecentByClubId(eq(clubId), any(Integer.class))).thenReturn(List.of(
+                ClubInvitation.builder().invitationId(UUID.randomUUID()).clubId(clubId).inviteeId(invitee)
+                        .status(ClubInvitationStatus.ACCEPTED).build()));
+        when(playerProfileProvider.lookupScoutingProfiles(any(), anyDouble(), anyDouble(), any()))
+                .thenReturn(List.of(candidate(invitee, 3, 10, 10.0)));
+
+        assertThat(service.getSentInvitations(clubId, ownerId))
+                .singleElement().extracting("relation").isEqualTo(PlayerClubRelation.MEMBER);
+    }
+
+    @Test
     @DisplayName("Loi moi da gui co ten nguoi choi, ke ca nguoi da an ho so")
     void sentInvitationsCarryPlayerIdentity() throws Exception {
         UUID invitee = UUID.randomUUID();
@@ -353,6 +369,7 @@ class ClubScoutingServiceImplTest {
             assertThat(item.getStatus()).isEqualTo(ClubInvitationStatus.DECLINED);
             assertThat(item.getPlayer().getFullName()).isEqualTo("An danh");
             assertThat(item.getMessage()).isEqualTo("Vào đội nhé");
+            assertThat(item.getRelation()).isEqualTo(PlayerClubRelation.NONE);
         });
     }
 }

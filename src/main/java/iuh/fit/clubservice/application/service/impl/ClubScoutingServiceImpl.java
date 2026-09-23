@@ -142,6 +142,7 @@ public class ClubScoutingServiceImpl implements ClubScoutingService {
 
         Map<UUID, ScoutedPlayerResponseCommand> players = lookup(club, invitations.stream()
                 .map(ClubInvitation::getInviteeId).distinct().toList(), false);
+        Map<UUID, PlayerClubRelation> relations = relationsOf(club);
         return invitations.stream()
                 .map(invitation -> SentInvitationResponseCommand.builder()
                         .invitationId(invitation.getInvitationId())
@@ -151,6 +152,7 @@ public class ClubScoutingServiceImpl implements ClubScoutingService {
                         .createdAt(invitation.getCreatedAt())
                         .respondedAt(invitation.getRespondedAt())
                         .player(players.get(invitation.getInviteeId()))
+                        .relation(relations.getOrDefault(invitation.getInviteeId(), PlayerClubRelation.NONE))
                         .build())
                 .toList();
     }

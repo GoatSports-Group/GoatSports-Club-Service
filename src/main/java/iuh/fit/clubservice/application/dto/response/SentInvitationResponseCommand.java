@@ -16,5 +16,6 @@ public class SentInvitationResponseCommand {
     private UUID invitedBy;
     private LocalDateTime createdAt;
     private LocalDateTime respondedAt;
+    private PlayerClubRelation relation;
     private ScoutedPlayerResponseCommand player;
 }
