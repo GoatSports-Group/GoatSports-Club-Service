@@ -102,9 +102,8 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Sua cau hinh truoc khi giai bat dau. Khi da co nguoi dang ky thi khoa nhung gi ho da dong y:
-     * le phi (khoan cho thanh toan dang mang so tien cu), mon, hinh thuc, co so va dieu kien tham du.
-     * San/ngay/khung gio doi duoc: venue-service giu lai toan bo va tu choi neu trung luot dat hien co.
+     * Chi sua duoc ban nhap. Da cong bo thi nguoi choi dua vao noi dung giai de dang ky/dong phi,
+     * nen doi gi cung la doi luat giua chung; muon doi thi huy giai (tu hoan phi) va tao giai moi.
      */
     @Override
     @Transactional(rollbackFor = ServiceException.class)
@@ -114,41 +113,17 @@ public class TournamentServiceImpl implements TournamentService {
         Tournament tournament = tournamentRepository.findByIdForUpdate(tournamentId)
                 .orElseThrow(() -> new ServiceException("Không tìm thấy giải đấu."));
         assertOrganizer(tournament, command.getOrganizerId());
-        TournamentStatus current = tournament.getStatus();
-        if (current == TournamentStatus.IN_PROGRESS || current == TournamentStatus.COMPLETED
-                || current == TournamentStatus.CANCELLED) {
-            throw new ServiceException("Chỉ sửa được giải đấu chưa bắt đầu.");
+        // Da cong bo thi nguoi choi da thay va co the da dang ky: noi dung giai co dinh, chi con huy giai.
+        if (tournament.getStatus() != TournamentStatus.DRAFT) {
+            throw new ServiceException("Giải đã công bố nên không sửa được nội dung. Nếu cần thay đổi, hãy hủy giải và tạo giải mới.");
         }
-        int holding = (int) registrationRepository.findByTournamentId(tournamentId).stream()
-                .filter(item -> TournamentRegistrationServiceImpl.HOLDING_SEAT.contains(item.getStatus())).count();
         int maxParticipants = command.getMaxParticipants() == null ? tournament.getMaxParticipants()
                 : command.getMaxParticipants();
-        if (maxParticipants < holding) {
-            throw new ServiceException("Số suất không được nhỏ hơn số đăng ký hiện có (" + holding + ").");
-        }
         double entryFee = command.getEntryFee() == null ? 0D : command.getEntryFee();
-        boolean rulesChanged = !ruleKeys(command.getEligibilityRules())
-                .equals(ruleKeysOf(eligibilityRuleRepository.findByTournamentId(tournamentId)));
-        if (holding > 0) {
-            if (Math.abs(entryFee - orZero(tournament.getEntryFee())) > 0.001D) {
-                throw new ServiceException("Đã có người đăng ký nên không thể đổi lệ phí.");
-            }
-            if (command.getSportType() != tournament.getSportType()
-                    || !Objects.equals(command.getPlayFormat(), tournament.getPlayFormat())) {
-                throw new ServiceException("Đã có người đăng ký nên không thể đổi môn hoặc hình thức thi đấu.");
-            }
-            if (!Objects.equals(command.getVenueId(), tournament.getVenueId())) {
-                throw new ServiceException("Đã có người đăng ký nên không thể đổi cơ sở tổ chức.");
-            }
-            if (rulesChanged) {
-                throw new ServiceException("Đã có người đăng ký nên không thể đổi điều kiện tham dự.");
-            }
-        }
         TournamentFormat format = command.getFormat() == null ? tournament.getFormat() : command.getFormat();
         assertEnoughCourts(format, maxParticipants, command.getCourtIds().size(), command.getStartDate(),
                 command.getEndDate(), command.getDailyStartTime(), command.getDailyEndTime(), command.getMatchDurationMinutes());
 
-        boolean renamed = !tournament.getName().equals(command.getName().trim());
         tournament.setName(command.getName().trim());
         tournament.setDescription(command.getDescription());
         tournament.setSportType(command.getSportType());
@@ -168,12 +143,9 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.setMatchDurationMinutes(command.getMatchDurationMinutes());
         tournament.setPlayFormat(command.getPlayFormat());
         Tournament saved = tournamentRepository.save(tournament);
-        if (rulesChanged) {
-            eligibilityRuleRepository.deleteByTournamentId(tournamentId);
-            saveEligibilityRules(tournamentId, command.getEligibilityRules());
-        }
-        venueCourtHold.hold(saved, saved.getStatus() == TournamentStatus.DRAFT);
-        if (renamed) registrationService.syncConversation(saved);
+        eligibilityRuleRepository.deleteByTournamentId(tournamentId);
+        saveEligibilityRules(tournamentId, command.getEligibilityRules());
+        venueCourtHold.hold(saved, true);
         return toResponse(saved);
     }
 
@@ -185,20 +157,6 @@ public class TournamentServiceImpl implements TournamentService {
                 dailyStart, dailyEnd, matchMinutes);
         Optional<String> shortage = TournamentCapacityPolicy.shortage(capacity, courts, matchMinutes);
         if (shortage.isPresent()) throw new ServiceException(shortage.get());
-    }
-
-    private Set<String> ruleKeys(List<CreateTournamentCommand.EligibilityRuleItem> items) {
-        Set<String> keys = new HashSet<>();
-        if (items != null) items.forEach(item -> keys.add(item.getRuleType() + "|" + item.getOperator() + "|"
-                + (item.getExpectedValue() == null ? "" : item.getExpectedValue().trim())));
-        return keys;
-    }
-
-    private Set<String> ruleKeysOf(List<TournamentEligibilityRule> rules) {
-        Set<String> keys = new HashSet<>();
-        rules.forEach(rule -> keys.add(rule.getRuleType() + "|" + rule.getOperator() + "|"
-                + (rule.getExpectedValue() == null ? "" : rule.getExpectedValue().trim())));
-        return keys;
     }
 
     @Override
@@ -333,7 +291,6 @@ public class TournamentServiceImpl implements TournamentService {
 
     private int orZero(Integer value) { return value == null ? 0 : value; }
 
-    private double orZero(Double value) { return value == null ? 0D : value; }
 
     @Override
     public List<TournamentStandingResponseCommand> getStandings(UUID tournamentId) {
@@ -679,7 +636,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .status(effectiveStatus(t)).maxParticipants(t.getMaxParticipants()).currentParticipants(count)
                 .entryFee(t.getEntryFee()).prizePool(t.getPrizePool()).registrationOpenDate(t.getRegistrationOpenDate())
                 .registrationCloseDate(t.getRegistrationCloseDate()).startDate(t.getStartDate()).endDate(t.getEndDate())
-                .rules(t.getRules()).venueId(t.getVenueId()).courtIds(t.getCourtIds())
+                .rules(t.getRules() == null ? List.of() : t.getRules()).venueId(t.getVenueId()).courtIds(t.getCourtIds())
                 .dailyStartTime(t.getDailyStartTime()).dailyEndTime(t.getDailyEndTime())
                 .matchDurationMinutes(t.getMatchDurationMinutes())
                 .playFormat(format.code()).playFormatLabel(format.label()).participantType(format.participantType())

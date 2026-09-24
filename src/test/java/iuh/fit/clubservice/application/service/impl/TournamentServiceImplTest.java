@@ -321,29 +321,22 @@ class TournamentServiceImplTest {
     }
 
     @Test
-    @DisplayName("đã có người đăng ký thì không đổi lệ phí, hình thức, cơ sở; không hạ số suất dưới số đăng ký")
-    void editIsLockedByExistingRegistrations() {
-        stubTournament(tournament(TournamentStatus.REGISTRATION_OPEN, TournamentFormat.SINGLE_ELIMINATION, 8));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(confirmedTeams(3));
-
-        assertThatThrownBy(() -> service.updateTournament(tournamentId, editCommand(50000D, 8)))
-                .isInstanceOf(ServiceException.class).hasMessageContaining("lệ phí");
-        assertThatThrownBy(() -> service.updateTournament(tournamentId, editCommand(0D, 2)))
-                .isInstanceOf(ServiceException.class).hasMessageContaining("(3)");
-        CreateTournamentCommand otherVenue = editCommand(0D, 8);
-        otherVenue.setVenueId(UUID.randomUUID());
-        assertThatThrownBy(() -> service.updateTournament(tournamentId, otherVenue))
-                .isInstanceOf(ServiceException.class).hasMessageContaining("cơ sở");
-        CreateTournamentCommand otherFormat = editCommand(0D, 8);
-        otherFormat.setPlayFormat("FOOTBALL_5");
-        assertThatThrownBy(() -> service.updateTournament(tournamentId, otherFormat))
-                .isInstanceOf(ServiceException.class).hasMessageContaining("hình thức");
+    @DisplayName("giải đã công bố thì không sửa được nội dung, kể cả khi chưa ai đăng ký")
+    void publishedTournamentIsReadOnly() throws ServiceException {
+        for (TournamentStatus status : List.of(TournamentStatus.PUBLISHED, TournamentStatus.REGISTRATION_OPEN,
+                TournamentStatus.IN_PROGRESS, TournamentStatus.CANCELLED)) {
+            stubTournament(tournament(status, TournamentFormat.SINGLE_ELIMINATION, 8));
+            assertThatThrownBy(() -> service.updateTournament(tournamentId, editCommand(0D, 8)))
+                    .isInstanceOf(ServiceException.class).hasMessageContaining("đã công bố");
+        }
+        verify(tournamentRepository, never()).save(any());
+        verify(venueCourtHold, never()).hold(any(), anyBoolean());
     }
 
     @Test
-    @DisplayName("sửa sân/khung giờ của giải đã công bố thì giữ lại sân bên venue")
-    void editingPublishedTournamentReholdsCourts() throws ServiceException {
-        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+    @DisplayName("bản nháp sửa được mọi thứ, chỉ kiểm tra sân (dry run) chứ chưa giữ")
+    void draftIsFullyEditable() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8));
         CreateTournamentCommand command = editCommand(80000D, 16);
         command.setEligibilityRules(List.of(CreateTournamentCommand.EligibilityRuleItem.builder()
                 .ruleType(EligibilityRuleType.AGE).operator(EligibilityRuleOperator.LESS_THAN_OR_EQUAL)
@@ -352,14 +345,25 @@ class TournamentServiceImplTest {
         var response = service.updateTournament(tournamentId, command);
 
         assertThat(response.getEntryFee()).isEqualTo(80000D);
-        verify(venueCourtHold).hold(any(), eq(false));
+        assertThat(response.getMaxParticipants()).isEqualTo(16);
+        verify(venueCourtHold).hold(any(), eq(true));
         verify(eligibilityRuleRepository).deleteByTournamentId(tournamentId);
+    }
+
+    @Test
+    @DisplayName("giải cũ có cột điều lệ null vẫn trả về danh sách rỗng (client đọc rules.length)")
+    void legacyNullRulesAreReturnedAsEmptyList() throws ServiceException {
+        Tournament legacy = tournament(TournamentStatus.REGISTRATION_OPEN, TournamentFormat.SINGLE_ELIMINATION, 8);
+        legacy.setRules(null);
+        stubTournament(legacy);
+
+        assertThat(service.getTournamentDetails(tournamentId, organizerId).getRules()).isEmpty();
     }
 
     @Test
     @DisplayName("người khác không sửa được giải")
     void onlyOrganizerCanEdit() {
-        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8));
         CreateTournamentCommand command = editCommand(0D, 8);
         command.setOrganizerId(UUID.randomUUID());
 
