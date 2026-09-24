@@ -4,5 +4,6 @@ public enum FeePaymentStatus {
     PENDING,
     SUCCEEDED,
     FAILED,
-    WAIVED
+    WAIVED,
+    REFUND_REQUESTED
 }

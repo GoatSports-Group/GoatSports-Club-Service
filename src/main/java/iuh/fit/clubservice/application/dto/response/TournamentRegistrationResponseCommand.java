@@ -20,6 +20,9 @@ public class TournamentRegistrationResponseCommand {
     private String statusReason;
     private LocalDateTime registeredAt;
     private LocalDateTime confirmedAt;
+    private LocalDateTime paymentDeadline;
+    private FeePaymentStatus paymentStatus;
+    private Double feeAmount;
     private List<LineupResponseItem> lineups;
 
     @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
@@ -29,5 +32,7 @@ public class TournamentRegistrationResponseCommand {
         private String playerName;
         private LineupRole lineupRole;
         private Integer shirtNumber;
+        private LineupMemberStatus memberStatus;
+        private LocalDateTime respondedAt;
     }
 }

@@ -1,16 +1,22 @@
 package iuh.fit.clubservice.presentation.controller;
 
 import iuh.fit.clubservice.application.exception.UnauthenticatedException;
+import iuh.fit.clubservice.application.dto.request.RegisterTournamentTeamCommand;
 import iuh.fit.clubservice.application.dto.response.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
+import iuh.fit.clubservice.application.service.TournamentRegistrationService;
 import iuh.fit.clubservice.application.service.TournamentService;
 import iuh.fit.clubservice.domain.entity.TournamentEligibilityRule;
 import iuh.fit.clubservice.domain.enums.*;
+import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.TournamentConverter;
 import iuh.fit.clubservice.presentation.request.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -22,18 +28,40 @@ import java.util.*;
 @RequiredArgsConstructor
 public class TournamentController {
     private final TournamentService tournamentService;
+    private final TournamentRegistrationService registrationService;
     private final TournamentConverter converter;
     private final CurrentUserProvider currentUserProvider;
 
-    @GetMapping("/search") @ApiMessage("Lấy danh sách giải đấu thành công")
+    @GetMapping("/search")
+    @ApiMessage("Lấy danh sách giải đấu thành công")
     public Page<TournamentResponseCommand> search(@RequestParam(required = false) SportType sportType,
             @RequestParam(required = false) TournamentStatus status,
             @RequestParam(required = false) String keyword, Pageable pageable) {
         return tournamentService.searchTournaments(sportType, status, keyword, pageable);
     }
 
-    @GetMapping("/{tournamentId}") public TournamentResponseCommand details(@PathVariable UUID tournamentId) throws ServiceException {
-        return tournamentService.getTournamentDetails(tournamentId);
+    @GetMapping("/play-formats")
+    @ApiMessage("Lấy hình thức thi đấu thành công")
+    public List<SportParticipationPolicy.PlayFormat> playFormats(@RequestParam SportType sportType) {
+        return SportParticipationPolicy.formatsOf(sportType);
+    }
+
+    @GetMapping("/me")
+    @ApiMessage("Lấy giải đấu của tôi thành công")
+    public Page<TournamentResponseCommand> mine(@RequestParam(defaultValue = "PARTICIPATING") String role,
+            Pageable pageable) throws ServiceException {
+        return tournamentService.getMyTournaments(requireUser(), "ORGANIZING".equalsIgnoreCase(role), pageable);
+    }
+
+    @GetMapping("/invitations/me")
+    @ApiMessage("Lấy lời mời vào đội thành công")
+    public List<TournamentRegistrationService.TeamInvitation> myInvitations() throws ServiceException {
+        return registrationService.getMyInvitations(requireUser());
+    }
+
+    @GetMapping("/{tournamentId}")
+    public TournamentResponseCommand details(@PathVariable UUID tournamentId) throws ServiceException {
+        return tournamentService.getTournamentDetails(tournamentId, currentUserProvider.getCurrentUserId().orElse(null));
     }
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
@@ -41,19 +69,62 @@ public class TournamentController {
         return tournamentService.createTournament(converter.toCommand(requireUser(), request));
     }
 
+    @PutMapping("/{tournamentId}")
+    @ApiMessage("Cập nhật giải đấu thành công")
+    public TournamentResponseCommand update(@PathVariable UUID tournamentId,
+            @Valid @RequestBody CreateTournamentRequest request) throws ServiceException {
+        return tournamentService.updateTournament(tournamentId, converter.toCommand(requireUser(), request));
+    }
+
     @PostMapping("/{tournamentId}/register")
     public TournamentRegistrationResponseCommand register(@PathVariable UUID tournamentId,
             @Valid @RequestBody RegisterTournamentTeamRequest request) throws ServiceException {
-        return tournamentService.registerTeam(converter.toCommand(tournamentId, requireUser(), request));
+        return registrationService.register(converter.toCommand(tournamentId, requireUser(), request));
     }
 
-    @DeleteMapping("/{tournamentId}/registrations/{registrationId}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancel(@PathVariable UUID tournamentId, @PathVariable UUID registrationId) throws ServiceException {
-        tournamentService.cancelRegistration(tournamentId, registrationId, requireUser());
+    @PostMapping("/{tournamentId}/registrations/{registrationId}/respond")
+    @ApiMessage("Đã trả lời lời mời vào đội")
+    public TournamentRegistrationResponseCommand respond(@PathVariable UUID tournamentId, @PathVariable UUID registrationId,
+            @Valid @RequestBody RespondInvitationRequest request) throws ServiceException {
+        return registrationService.respondInvitation(tournamentId, registrationId, requireUser(), request.accept());
     }
 
-    @GetMapping("/{tournamentId}/teams") public List<TournamentRegistrationResponseCommand> teams(@PathVariable UUID tournamentId) {
-        return tournamentService.getTournamentTeams(tournamentId);
+    @PostMapping("/{tournamentId}/registrations/{registrationId}/members")
+    @ApiMessage("Đã gửi lời mời vào đội")
+    public TournamentRegistrationResponseCommand invite(@PathVariable UUID tournamentId, @PathVariable UUID registrationId,
+            @Valid @RequestBody InviteMembersRequest request) throws ServiceException {
+        List<RegisterTournamentTeamCommand.LineupItem> invitees = request.members().stream()
+                .map(item -> RegisterTournamentTeamCommand.LineupItem.builder().playerId(item.getPlayerId())
+                        .playerName(item.getPlayerName()).lineupRole(item.getLineupRole())
+                        .shirtNumber(item.getShirtNumber()).build()).toList();
+        return registrationService.inviteMembers(tournamentId, registrationId, requireUser(), invitees);
+    }
+
+    @DeleteMapping("/{tournamentId}/registrations/{registrationId}/members/{playerId}")
+    @ApiMessage("Đã cập nhật đội hình")
+    public TournamentRegistrationResponseCommand removeMember(@PathVariable UUID tournamentId,
+            @PathVariable UUID registrationId, @PathVariable UUID playerId) throws ServiceException {
+        return registrationService.removeMember(tournamentId, registrationId, requireUser(), playerId);
+    }
+
+    @PostMapping("/{tournamentId}/registrations/{registrationId}/checkout")
+    @ApiMessage("Đã tạo mã thanh toán lệ phí")
+    public TournamentRegistrationService.FeeCheckout checkout(@PathVariable UUID tournamentId,
+            @PathVariable UUID registrationId) throws ServiceException {
+        return registrationService.checkout(tournamentId, registrationId, requireUser());
+    }
+
+    @DeleteMapping("/{tournamentId}/registrations/{registrationId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancel(@PathVariable UUID tournamentId, @PathVariable UUID registrationId,
+            @RequestParam(required = false) @Size(max = 300) String reason)
+            throws ServiceException {
+        registrationService.cancel(tournamentId, registrationId, requireUser(), reason);
+    }
+
+    @GetMapping("/{tournamentId}/teams")
+    public List<TournamentRegistrationResponseCommand> teams(@PathVariable UUID tournamentId) {
+        return registrationService.getTeams(tournamentId);
     }
 
     @PostMapping("/{tournamentId}/generate-fixtures")
@@ -86,13 +157,13 @@ public class TournamentController {
         return tournamentService.getEligibilityRules(tournamentId);
     }
 
-    @GetMapping("/{tournamentId}/reservations") @ApiMessage("Lấy danh sách đặt sân thành công")
+    @GetMapping("/{tournamentId}/reservations") @ApiMessage("Lấy lịch sân thi đấu thành công")
     public List<TournamentVenueReservationResponseCommand> reservations(@PathVariable UUID tournamentId) {
         return tournamentService.getReservations(tournamentId);
     }
 
     @PostMapping("/{tournamentId}/reservations") @ResponseStatus(HttpStatus.CREATED)
-    @ApiMessage("Đặt sân cho giải đấu thành công")
+    @ApiMessage("Đã xếp sân cho trận đấu")
     public TournamentVenueReservationResponseCommand reserve(@PathVariable UUID tournamentId,
             @Valid @RequestBody ReserveTournamentVenueRequest request) throws ServiceException {
         return tournamentService.reserveVenue(converter.toCommand(tournamentId, requireUser(), request));
@@ -106,4 +177,10 @@ public class TournamentController {
     private UUID requireUser() throws ServiceException {
         return currentUserProvider.getCurrentUserId().orElseThrow(() -> new UnauthenticatedException("Bạn cần đăng nhập để thực hiện thao tác này."));
     }
+
+    public record RespondInvitationRequest(@NotNull(message = "Chọn nhận lời hoặc từ chối") Boolean accept) { }
+
+    public record InviteMembersRequest(
+            @NotEmpty(message = "Chọn ít nhất một người để mời") @Size(max = 30) @Valid
+            List<RegisterTournamentTeamRequest.LineupItemRequest> members) { }
 }

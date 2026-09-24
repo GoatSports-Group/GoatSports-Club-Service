@@ -3,12 +3,14 @@ package iuh.fit.clubservice.infrastructure.persistence.entity;
 import iuh.fit.clubservice.domain.enums.TournamentFormat;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
 import iuh.fit.clubservice.domain.enums.SportType;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,5 +73,24 @@ public class TournamentEntity extends BaseEntity {
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "rules", columnDefinition = "jsonb")
     private List<String> rules;
+
+    @Column(name = "venue_id")
+    private UUID venueId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "court_ids", columnDefinition = "jsonb")
+    private List<UUID> courtIds;
+
+    @Column(name = "daily_start_time")
+    private LocalTime dailyStartTime;
+
+    @Column(name = "daily_end_time")
+    private LocalTime dailyEndTime;
+
+    @Column(name = "match_duration_minutes")
+    private Integer matchDurationMinutes;
+
+    @Column(name = "play_format", length = 40)
+    private String playFormat;
 
 }

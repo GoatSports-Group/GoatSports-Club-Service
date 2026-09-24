@@ -60,4 +60,7 @@ public class TournamentRegistrationEntity extends BaseEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
+    @Column(name = "payment_deadline")
+    private LocalDateTime paymentDeadline;
+
 }

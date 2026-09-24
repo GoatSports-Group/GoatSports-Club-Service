@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <changeSet id="20260924-tournament-venue-and-format" author="codex">
+        <comment>Giai gan voi co so + san cua chu san, khung gio thi dau va hinh thuc (don/doi/so nguoi)</comment>
+        <addColumn tableName="tournaments">
+            <column name="venue_id" type="UUID"/>
+            <column name="court_ids" type="JSONB"/>
+            <column name="daily_start_time" type="TIME"/>
+            <column name="daily_end_time" type="TIME"/>
+            <column name="match_duration_minutes" type="INT"/>
+            <column name="play_format" type="VARCHAR(40)"/>
+        </addColumn>
+        <createIndex tableName="tournaments" indexName="idx_tournaments_venue">
+            <column name="venue_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260924-registration-payment-deadline" author="codex">
+        <addColumn tableName="tournament_registrations">
+            <column name="payment_deadline" type="DATETIME"/>
+        </addColumn>
+        <createIndex tableName="tournament_registrations" indexName="idx_tournament_registrations_deadline">
+            <column name="status"/>
+            <column name="payment_deadline"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260924-lineup-member-confirmation" author="codex">
+        <comment>Dong doi duoc moi phai tu xac nhan; doi hinh cu coi nhu da xac nhan</comment>
+        <addColumn tableName="tournament_lineups">
+            <column name="member_status" type="VARCHAR(20)" defaultValue="ACCEPTED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="responded_at" type="DATETIME"/>
+        </addColumn>
+        <createIndex tableName="tournament_lineups" indexName="idx_tournament_lineups_player">
+            <column name="player_id"/>
+            <column name="member_status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260924-lineup-unique-player" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM (
+                    SELECT registration_id, player_id FROM tournament_lineups
+                    GROUP BY registration_id, player_id HAVING COUNT(*) &gt; 1
+                ) duplicated
+            </sqlCheck>
+        </preConditions>
+        <comment>Mot nguoi chi mot dong trong doi hinh cua mot dang ky (chan moi trung khi bam hai lan)</comment>
+        <addUniqueConstraint tableName="tournament_lineups" columnNames="registration_id, player_id"
+                             constraintName="uc_tournament_lineups_registration_player"/>
+    </changeSet>
+
+</databaseChangeLog>

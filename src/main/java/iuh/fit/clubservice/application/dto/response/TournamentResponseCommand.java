@@ -25,6 +25,16 @@ public class TournamentResponseCommand {
     private LocalDate startDate;
     private LocalDate endDate;
     private List<String> rules;
+    private UUID venueId;
+    private List<UUID> courtIds;
+    private java.time.LocalTime dailyStartTime;
+    private java.time.LocalTime dailyEndTime;
+    private Integer matchDurationMinutes;
+    private String playFormat;
+    private String playFormatLabel;
+    private ParticipantType participantType;
+    private Integer rosterMin;
+    private Integer rosterMax;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

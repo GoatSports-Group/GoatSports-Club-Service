@@ -13,6 +13,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,27 +41,55 @@ public class TournamentRepositoryImpl implements TournamentRepository {
         return jpaTournamentRepository.findByIdForUpdate(tournamentId).map(tournamentEntityMapper::toDomain);
     }
 
+    private static final List<TournamentStatus> DATE_DRIVEN = List.of(
+            TournamentStatus.PUBLISHED, TournamentStatus.REGISTRATION_OPEN, TournamentStatus.REGISTRATION_CLOSED);
+
     @Override
-    public Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable) {
-        Specification<TournamentEntity> specification = (root, query, criteriaBuilder) ->
-                criteriaBuilder.conjunction();
+    public Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword,
+                                              LocalDate today, Pageable pageable) {
+        Specification<TournamentEntity> specification = (root, query, cb) ->
+                cb.notEqual(root.get("status"), TournamentStatus.DRAFT);
 
         if (sportType != null) {
-            specification = specification.and((root, query, criteriaBuilder) ->
-                    criteriaBuilder.equal(root.get("sportType"), sportType));
+            specification = specification.and((root, query, cb) -> cb.equal(root.get("sportType"), sportType));
         }
-
         if (status != null) {
-            specification = specification.and((root, query, criteriaBuilder) ->
-                    criteriaBuilder.equal(root.get("status"), status));
+            specification = specification.and(effectiveStatus(status, today));
         }
-
         if (keyword != null && !keyword.isBlank()) {
             String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
-            specification = specification.and((root, query, criteriaBuilder) ->
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern));
+            specification = specification.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern));
         }
+        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+    }
 
+    /** Cung luat voi TournamentServiceImpl.effectiveStatus, dich sang SQL de phan trang dung. */
+    private Specification<TournamentEntity> effectiveStatus(TournamentStatus status, LocalDate today) {
+        return switch (status) {
+            case PUBLISHED -> (root, query, cb) -> cb.and(root.get("status").in(DATE_DRIVEN),
+                    cb.greaterThan(root.get("registrationOpenDate"), today));
+            case REGISTRATION_OPEN -> (root, query, cb) -> cb.and(root.get("status").in(DATE_DRIVEN),
+                    cb.lessThanOrEqualTo(root.get("registrationOpenDate"), today),
+                    cb.greaterThanOrEqualTo(root.get("registrationCloseDate"), today));
+            case REGISTRATION_CLOSED -> (root, query, cb) -> cb.and(root.get("status").in(DATE_DRIVEN),
+                    cb.lessThan(root.get("registrationCloseDate"), today));
+            default -> (root, query, cb) -> cb.equal(root.get("status"), status);
+        };
+    }
+
+    @Override
+    public Page<Tournament> findByOrganizerId(UUID organizerId, Pageable pageable) {
+        Specification<TournamentEntity> specification = (root, query, cb) ->
+                cb.equal(root.get("organizerId"), organizerId);
+        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+    }
+
+    @Override
+    public Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable) {
+        if (tournamentIds.isEmpty()) return Page.empty(pageable);
+        Specification<TournamentEntity> specification = (root, query, cb) -> cb.and(
+                root.get("tournamentId").in(tournamentIds),
+                cb.notEqual(root.get("status"), TournamentStatus.DRAFT));
         return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
     }
 

@@ -155,4 +155,30 @@ class EligibilityPolicyTest {
         assertThat(violation).isPresent();
         assertThat(violation.get()).contains("Tuổi");
     }
+
+    @Test
+    @DisplayName("luật không đọc được bị chặn ngay lúc lưu giải, không để giải không ai đăng ký nổi")
+    void unreadableRulesAreRejectedAtSaveTime() {
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.AGE,
+                EligibilityRuleOperator.GREATER_THAN_OR_EQUAL, "18")).isEmpty();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.AGE,
+                EligibilityRuleOperator.BETWEEN, "16-18")).isEmpty();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.SKILL_LEVEL,
+                EligibilityRuleOperator.LESS_THAN_OR_EQUAL, "INTERMEDIATE")).isEmpty();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.GENDER,
+                EligibilityRuleOperator.EQUAL, "female")).isEmpty();
+
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.AGE,
+                EligibilityRuleOperator.GREATER_THAN_OR_EQUAL, "mười tám")).isPresent();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.AGE,
+                EligibilityRuleOperator.BETWEEN, "30-18")).isPresent();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.SKILL_LEVEL,
+                EligibilityRuleOperator.EQUAL, "EXPERT")).isPresent();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.GENDER,
+                EligibilityRuleOperator.GREATER_THAN, "MALE")).isPresent();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.CLUB_MEMBERSHIP,
+                EligibilityRuleOperator.EQUAL, "clb-abc")).isPresent();
+        assertThat(EligibilityPolicy.invalidRule(EligibilityRuleType.ELO_RATING,
+                EligibilityRuleOperator.LESS_THAN, " ")).isPresent();
+    }
 }

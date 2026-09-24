@@ -36,6 +36,19 @@ public class TournamentLineupRepositoryImpl implements TournamentLineupRepositor
     }
 
     @Override
+    public List<TournamentLineup> findByPlayerIdAndMemberStatus(UUID playerId,
+            iuh.fit.clubservice.domain.enums.LineupMemberStatus memberStatus) {
+        return jpaTournamentLineupRepository.findByPlayerIdAndMemberStatus(playerId, memberStatus).stream()
+                .map(tournamentLineupEntityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteById(UUID lineupId) {
+        jpaTournamentLineupRepository.deleteById(lineupId);
+    }
+
+    @Override
     public void deleteByRegistrationId(UUID registrationId) {
         jpaTournamentLineupRepository.deleteByRegistrationId(registrationId);
     }

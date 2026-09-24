@@ -24,6 +24,7 @@ public class RegisterTournamentTeamCommand {
     private RegistrationType type;
     private SkillLevel skillLevel;
     private List<LineupItem> lineups;
+    private Integer captainShirtNumber;
 
     public void validate(RegistrationType registrationType) throws ServiceException {
         if (registrationType == RegistrationType.CLUB && clubId == null) {

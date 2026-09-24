@@ -6,6 +6,8 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,7 +18,12 @@ public interface TournamentRepository {
 
     Optional<Tournament> findByIdForUpdate(UUID tournamentId);
 
-    Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable);
+    Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword,
+                                       LocalDate today, Pageable pageable);
+
+    Page<Tournament> findByOrganizerId(UUID organizerId, Pageable pageable);
+
+    Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable);
 
     void deleteById(UUID tournamentId);
 }

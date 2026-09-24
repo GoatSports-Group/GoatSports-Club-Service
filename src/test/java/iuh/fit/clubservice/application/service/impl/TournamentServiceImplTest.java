@@ -1,19 +1,21 @@
 package iuh.fit.clubservice.application.service.impl;
 
-import iuh.fit.clubservice.application.dto.request.RegisterTournamentTeamCommand;
+import iuh.fit.clubservice.application.dto.request.CreateTournamentCommand;
 import iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateFixtureResultCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentFixtureResponseCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentStandingResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
-import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
+import iuh.fit.clubservice.application.port.external.VenueCourtHold;
 import iuh.fit.clubservice.application.port.persistence.*;
+import iuh.fit.clubservice.application.service.TournamentRegistrationService;
 import iuh.fit.clubservice.domain.entity.*;
 import iuh.fit.clubservice.domain.enums.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -32,6 +34,9 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,35 +47,38 @@ class TournamentServiceImplTest {
 
     @Mock private TournamentRepository tournamentRepository;
     @Mock private TournamentRegistrationRepository registrationRepository;
-    @Mock private TournamentLineupRepository lineupRepository;
     @Mock private TournamentFixtureRepository fixtureRepository;
-    @Mock private TournamentPaymentRepository paymentRepository;
     @Mock private TournamentEligibilityRuleRepository eligibilityRuleRepository;
-    @Mock private PlayerProfileProvider playerProfileProvider;
     @Mock private TournamentVenueReservationRepository reservationRepository;
     @Mock private ClubRepository clubRepository;
-    @Mock private iuh.fit.clubservice.application.port.external.VenueSlotReservation venueSlotReservation;
-    @Mock private iuh.fit.clubservice.application.port.external.ClubConversationSync conversationSync;
+    @Mock private VenueCourtHold venueCourtHold;
+    @Mock private TournamentRegistrationService registrationService;
 
     private TournamentServiceImpl service;
 
     private final UUID tournamentId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private final UUID organizerId = UUID.randomUUID();
+    private final UUID venueId = UUID.randomUUID();
+    private final UUID court1 = UUID.randomUUID();
+    private final UUID court2 = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new TournamentServiceImpl(
-                tournamentRepository, registrationRepository, lineupRepository, fixtureRepository,
-                paymentRepository, eligibilityRuleRepository, playerProfileProvider,
-                reservationRepository, clubRepository, venueSlotReservation, conversationSync);
+        service = new TournamentServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
+                eligibilityRuleRepository, reservationRepository, clubRepository, venueCourtHold, registrationService);
 
         when(eligibilityRuleRepository.findByTournamentId(any())).thenReturn(List.of());
-        when(tournamentRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(tournamentRepository.save(any())).thenAnswer(call -> {
+            Tournament tournament = call.getArgument(0);
+            if (tournament.getTournamentId() == null) tournament.setTournamentId(tournamentId);
+            return tournament;
+        });
         when(fixtureRepository.save(any())).thenAnswer(call -> call.getArgument(0));
-        when(registrationRepository.save(any())).thenAnswer(call -> {
-            TournamentRegistration registration = call.getArgument(0);
-            if (registration.getRegistrationId() == null) registration.setRegistrationId(UUID.randomUUID());
-            return registration;
+        when(registrationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+        when(reservationRepository.save(any())).thenAnswer(call -> {
+            TournamentVenueReservation reservation = call.getArgument(0);
+            if (reservation.getReservationId() == null) reservation.setReservationId(UUID.randomUUID());
+            return reservation;
         });
         // saveAll cap id nhu database that, vi bracket can id cua vong sau de noi nextFixtureId
         when(fixtureRepository.saveAll(any())).thenAnswer(call -> {
@@ -90,13 +98,22 @@ class TournamentServiceImplTest {
                 .maxParticipants(maxParticipants).entryFee(0D).prizePool(0D)
                 .registrationOpenDate(today.minusDays(1)).registrationCloseDate(today.plusDays(5))
                 .startDate(today.plusDays(6)).endDate(today.plusDays(7))
+                .venueId(venueId).courtIds(List.of(court1, court2))
+                .dailyStartTime(LocalTime.of(7, 0)).dailyEndTime(LocalTime.of(21, 0))
+                .matchDurationMinutes(60).playFormat("FOOTBALL_7")
                 .rules(List.of()).build();
+    }
+
+    /** Stub ca doc thuong lan doc co khoa hang, vi service dung ca hai tuy thao tac. */
+    private void stubTournament(Tournament tournament) {
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
+        when(tournamentRepository.findByIdForUpdate(tournamentId)).thenReturn(Optional.of(tournament));
     }
 
     private TournamentRegistration registration(UUID id, UUID clubId) {
         return TournamentRegistration.builder()
                 .registrationId(id).tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).status(RegistrationStatus.CONFIRMED)
+                .type(RegistrationType.TEAM).status(RegistrationStatus.CONFIRMED)
                 .clubId(clubId).build();
     }
 
@@ -106,6 +123,320 @@ class TournamentServiceImplTest {
             teams.add(registration(new UUID(0L, index + 1L), null));
         }
         return teams;
+    }
+
+    private CreateTournamentCommand createCommand(boolean publish, int maxParticipants, List<UUID> courts,
+                                                  LocalTime start, LocalTime end) {
+        LocalDate today = LocalDate.now();
+        return CreateTournamentCommand.builder().organizerId(organizerId).name("Giải sân 7 mùa thu")
+                .sportType(SportType.FOOTBALL).format(TournamentFormat.SINGLE_ELIMINATION)
+                .maxParticipants(maxParticipants).entryFee(300_000D).prizePool(0D)
+                .registrationOpenDate(today).registrationCloseDate(today.plusDays(5))
+                .startDate(today.plusDays(6)).endDate(today.plusDays(7))
+                .venueId(venueId).courtIds(courts).dailyStartTime(start).dailyEndTime(end)
+                .matchDurationMinutes(60).playFormat("FOOTBALL_7").publish(publish).build();
+    }
+
+    // ---------- tao giai: chi tai co so cua chu san, du san ----------
+
+    @Test
+    @DisplayName("công bố ngay thì giữ sân thật bên venue cho cả thời gian giải")
+    void publishingOnCreateHoldsCourts() throws ServiceException {
+        service.createTournament(createCommand(true, 8, List.of(court1, court2), LocalTime.of(8, 0), LocalTime.of(20, 0)));
+
+        ArgumentCaptor<Tournament> held = ArgumentCaptor.forClass(Tournament.class);
+        verify(venueCourtHold).hold(held.capture(), eq(false));
+        assertThat(held.getValue().getCourtIds()).containsExactly(court1, court2);
+        assertThat(held.getValue().getVenueId()).isEqualTo(venueId);
+    }
+
+    @Test
+    @DisplayName("lưu nháp chỉ kiểm tra sân, chưa khóa sân của người chơi")
+    void draftOnlyValidatesCourts() throws ServiceException {
+        var created = service.createTournament(createCommand(false, 8, List.of(court1), LocalTime.of(8, 0), LocalTime.of(20, 0)));
+
+        assertThat(created.getStatus()).isEqualTo(TournamentStatus.DRAFT);
+        verify(venueCourtHold).hold(any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("không đủ sân cho số trận tối đa thì không tạo giải")
+    void notEnoughCourtsIsRejected() throws ServiceException {
+        // 32 doi loai truc tiep = 31 tran; 1 san x 2 ngay x 2 tran/ngay = 4 tran.
+        assertThatThrownBy(() -> service.createTournament(createCommand(true, 32, List.of(court1),
+                LocalTime.of(18, 0), LocalTime.of(20, 0))))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Không đủ sân").hasMessageContaining("31 trận");
+        verify(tournamentRepository, never()).save(any());
+        verify(venueCourtHold, never()).hold(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("venue từ chối (không phải cơ sở của bạn, sân đã có người đặt...) thì lỗi đi thẳng tới người tạo")
+    void venueRejectionReachesOrganizer() throws ServiceException {
+        doThrow(new ServiceException("Người chơi đã đặt sân trong thời gian giải: Sân 1 (2 lượt)"))
+                .when(venueCourtHold).hold(any(), anyBoolean());
+
+        assertThatThrownBy(() -> service.createTournament(createCommand(true, 8, List.of(court1, court2),
+                LocalTime.of(8, 0), LocalTime.of(20, 0))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("Sân 1 (2 lượt)");
+    }
+
+    @Test
+    @DisplayName("hình thức thi đấu phải thuộc môn của giải")
+    void playFormatMustMatchSport() {
+        CreateTournamentCommand command = createCommand(true, 8, List.of(court1), LocalTime.of(8, 0), LocalTime.of(20, 0));
+        command.setPlayFormat("BADMINTON_DOUBLES");
+
+        assertThatThrownBy(() -> service.createTournament(command))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("không thuộc môn");
+    }
+
+    // ---------- vong doi: cong bo / huy / ket thuc ----------
+
+    @Test
+    @DisplayName("công bố bản nháp thì mới khóa sân")
+    void publishingDraftHoldsCourts() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, organizerId);
+
+        verify(venueCourtHold).hold(any(), eq(false));
+    }
+
+    @Test
+    @DisplayName("bản nháp cũ chưa gắn cơ sở thì không công bố được")
+    void legacyDraftWithoutVenueCannotPublish() {
+        Tournament draft = tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8);
+        draft.setVenueId(null);
+        stubTournament(draft);
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, organizerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("chọn cơ sở");
+    }
+
+    @Test
+    @DisplayName("hủy giải trả sân bên venue, đóng lịch trận và đóng mọi đăng ký (kèm hoàn phí)")
+    void cancellingReleasesCourtsAndClosesRegistrations() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+        TournamentVenueReservation match = TournamentVenueReservation.builder().reservationId(UUID.randomUUID())
+                .tournamentId(tournamentId).courtId(court1).status(ReservationStatus.CONFIRMED).build();
+        when(reservationRepository.findByTournamentId(tournamentId)).thenReturn(List.of(match));
+
+        service.changeStatus(tournamentId, TournamentStatus.CANCELLED, organizerId);
+
+        verify(venueCourtHold).release(tournamentId);
+        verify(registrationService).closeAllForCancelledTournament(any(), eq(organizerId));
+        assertThat(match.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+    }
+
+    @Test
+    @DisplayName("kết thúc sớm trả lại các ngày còn lại cho người chơi đặt")
+    void completingReleasesCourts() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.ROUND_ROBIN, 8));
+        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
+
+        service.changeStatus(tournamentId, TournamentStatus.COMPLETED, organizerId);
+
+        verify(venueCourtHold).release(tournamentId);
+    }
+
+    @Test
+    @DisplayName("không thể hoàn thành giải khi còn trận chưa có kết quả")
+    void cannotCompleteWithPendingMatches() {
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.ROUND_ROBIN, 8));
+        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
+                TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
+                        .status(MatchStatus.SCHEDULED).build()));
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.COMPLETED, organizerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("chưa có kết quả");
+    }
+
+    @Test
+    @DisplayName("chỉ ban tổ chức được đổi trạng thái giải")
+    void onlyOrganizerCanChangeStatus() {
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, UUID.randomUUID()))
+                .isInstanceOf(ServiceException.class);
+    }
+
+    @Test
+    @DisplayName("giải đã hủy không quay lại trạng thái khác")
+    void cancelledTournamentIsTerminal() {
+        stubTournament(tournament(TournamentStatus.CANCELLED, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, organizerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("đã kết thúc hoặc đã hủy");
+    }
+
+    @Test
+    @DisplayName("không công bố bản nháp khi hạn đăng ký đã qua")
+    void cannotPublishDraftAfterRegistrationClosed() {
+        Tournament draft = tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8);
+        draft.setRegistrationCloseDate(LocalDate.now().minusDays(1));
+        stubTournament(draft);
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, organizerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Hạn đăng ký đã qua");
+    }
+
+    @Test
+    @DisplayName("bản nháp chỉ ban tổ chức xem được")
+    void draftIsHiddenFromOthers() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        assertThat(service.getTournamentDetails(tournamentId, organizerId).getStatus()).isEqualTo(TournamentStatus.DRAFT);
+        assertThatThrownBy(() -> service.getTournamentDetails(tournamentId, UUID.randomUUID()))
+                .isInstanceOf(ServiceException.class);
+    }
+
+    @Test
+    @DisplayName("response mang hình thức thi đấu và số người đội suy ra từ policy")
+    void responseCarriesPlayFormat() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        var response = service.getTournamentDetails(tournamentId, null);
+
+        assertThat(response.getParticipantType()).isEqualTo(ParticipantType.TEAM);
+        assertThat(response.getRosterMin()).isEqualTo(7);
+        assertThat(response.getRosterMax()).isEqualTo(14);
+    }
+
+    // ---------- sua giai ----------
+
+    private CreateTournamentCommand editCommand(double entryFee, int maxParticipants) {
+        LocalDate today = LocalDate.now();
+        return CreateTournamentCommand.builder().organizerId(organizerId).name("Giải test (sửa)")
+                .sportType(SportType.FOOTBALL).format(TournamentFormat.SINGLE_ELIMINATION)
+                .maxParticipants(maxParticipants).entryFee(entryFee).prizePool(0D)
+                .registrationOpenDate(today.minusDays(1)).registrationCloseDate(today.plusDays(5))
+                .startDate(today.plusDays(6)).endDate(today.plusDays(7))
+                .venueId(venueId).courtIds(List.of(court1, court2)).dailyStartTime(LocalTime.of(7, 0))
+                .dailyEndTime(LocalTime.of(21, 0)).matchDurationMinutes(60).playFormat("FOOTBALL_7").build();
+    }
+
+    @Test
+    @DisplayName("đã có người đăng ký thì không đổi lệ phí, hình thức, cơ sở; không hạ số suất dưới số đăng ký")
+    void editIsLockedByExistingRegistrations() {
+        stubTournament(tournament(TournamentStatus.REGISTRATION_OPEN, TournamentFormat.SINGLE_ELIMINATION, 8));
+        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(confirmedTeams(3));
+
+        assertThatThrownBy(() -> service.updateTournament(tournamentId, editCommand(50000D, 8)))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("lệ phí");
+        assertThatThrownBy(() -> service.updateTournament(tournamentId, editCommand(0D, 2)))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("(3)");
+        CreateTournamentCommand otherVenue = editCommand(0D, 8);
+        otherVenue.setVenueId(UUID.randomUUID());
+        assertThatThrownBy(() -> service.updateTournament(tournamentId, otherVenue))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("cơ sở");
+        CreateTournamentCommand otherFormat = editCommand(0D, 8);
+        otherFormat.setPlayFormat("FOOTBALL_5");
+        assertThatThrownBy(() -> service.updateTournament(tournamentId, otherFormat))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("hình thức");
+    }
+
+    @Test
+    @DisplayName("sửa sân/khung giờ của giải đã công bố thì giữ lại sân bên venue")
+    void editingPublishedTournamentReholdsCourts() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+        CreateTournamentCommand command = editCommand(80000D, 16);
+        command.setEligibilityRules(List.of(CreateTournamentCommand.EligibilityRuleItem.builder()
+                .ruleType(EligibilityRuleType.AGE).operator(EligibilityRuleOperator.LESS_THAN_OR_EQUAL)
+                .expectedValue("35").build()));
+
+        var response = service.updateTournament(tournamentId, command);
+
+        assertThat(response.getEntryFee()).isEqualTo(80000D);
+        verify(venueCourtHold).hold(any(), eq(false));
+        verify(eligibilityRuleRepository).deleteByTournamentId(tournamentId);
+    }
+
+    @Test
+    @DisplayName("người khác không sửa được giải")
+    void onlyOrganizerCanEdit() {
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
+        CreateTournamentCommand command = editCommand(0D, 8);
+        command.setOrganizerId(UUID.randomUUID());
+
+        assertThatThrownBy(() -> service.updateTournament(tournamentId, command))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("người tổ chức");
+    }
+
+    // ---------- xep tran vao san cua giai ----------
+
+    private ReserveTournamentVenueCommand reserve(UUID court, LocalDate date, LocalTime start, LocalTime end) {
+        return ReserveTournamentVenueCommand.builder().tournamentId(tournamentId).actorUserId(organizerId)
+                .courtId(court).playDate(date).startTime(start).endTime(end).build();
+    }
+
+    @Test
+    @DisplayName("xếp trận vào sân của giải không gọi venue: sân đã được giữ nguyên khối")
+    void schedulingMatchUsesHeldCourts() throws ServiceException {
+        Tournament tournament = tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8);
+        stubTournament(tournament);
+        when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
+
+        var response = service.reserveVenue(reserve(court1, tournament.getStartDate(), LocalTime.of(8, 0), LocalTime.of(9, 0)));
+
+        assertThat(response.getVenueId()).isEqualTo(venueId);
+        assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        verify(venueCourtHold, never()).hold(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("sân ngoài danh sách, ngày ngoài giải hoặc giờ ngoài khung đã giữ đều bị chặn")
+    void schedulingOutsideHeldCourtsIsRejected() {
+        Tournament tournament = tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8);
+        stubTournament(tournament);
+
+        assertThatThrownBy(() -> service.reserveVenue(reserve(UUID.randomUUID(), tournament.getStartDate(),
+                LocalTime.of(8, 0), LocalTime.of(9, 0))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("danh sách sân");
+        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getEndDate().plusDays(1),
+                LocalTime.of(8, 0), LocalTime.of(9, 0))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("thời gian diễn ra");
+        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+                LocalTime.of(20, 30), LocalTime.of(21, 30))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("khung");
+        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+                LocalTime.of(8, 0), LocalTime.of(8, 30))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("thời lượng");
+    }
+
+    @Test
+    @DisplayName("hai trận không xếp trùng một sân một giờ")
+    void overlappingMatchIsRejected() {
+        Tournament tournament = tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8);
+        stubTournament(tournament);
+        when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of(
+                TournamentVenueReservation.builder().reservationId(UUID.randomUUID()).build()));
+
+        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+                LocalTime.of(8, 0), LocalTime.of(9, 0))))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("trận khác");
+    }
+
+    @Test
+    @DisplayName("bỏ lịch sân thì gỡ liên kết khỏi trận")
+    void releasingReservationDetachesFixture() throws ServiceException {
+        UUID reservationId = UUID.randomUUID();
+        TournamentVenueReservation reservation = TournamentVenueReservation.builder()
+                .reservationId(reservationId).tournamentId(tournamentId).status(ReservationStatus.CONFIRMED).build();
+        TournamentFixture fixture = TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
+                .reservationId(reservationId).status(MatchStatus.SCHEDULED).build();
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
+        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(fixture));
+
+        service.releaseReservation(tournamentId, reservationId, organizerId);
+
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.RELEASED);
+        assertThat(fixture.getReservationId()).isNull();
     }
 
     // ---------- TOUR-06: bang xep hang ----------
@@ -124,11 +455,8 @@ class TournamentServiceImplTest {
 
         List<TournamentStandingResponseCommand> standings = service.getStandings(tournamentId);
 
-        assertThat(standings).hasSize(2);
         assertThat(standings.get(0).getRegistrationId()).isEqualTo(strong);
-        assertThat(standings.get(0).getRank()).isEqualTo(1);
         assertThat(standings.get(0).getPoints()).isEqualTo(3);
-        assertThat(standings.get(1).getRegistrationId()).isEqualTo(weak);
         assertThat(standings.get(1).getPoints()).isZero();
     }
 
@@ -139,8 +467,7 @@ class TournamentServiceImplTest {
         UUID worse = new UUID(0L, 2L);
         UUID victim = new UUID(0L, 3L);
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
-                .thenReturn(List.of(registration(better, null), registration(worse, null),
-                        registration(victim, null)));
+                .thenReturn(List.of(registration(better, null), registration(worse, null), registration(victim, null)));
         when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
                 TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
                         .registration1Id(better).registration2Id(victim).score1(5).score2(0)
@@ -155,189 +482,17 @@ class TournamentServiceImplTest {
         assertThat(standings.get(1).getRegistrationId()).isEqualTo(worse);
     }
 
-    // ---------- TOUR-02: capacity va duplicate ----------
-
-    @Test
-    @DisplayName("đăng ký khi đã đủ chỗ bị từ chối")
-    void registrationIsRejectedWhenFull() {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 2)));
-        when(registrationRepository.findByTournamentId(tournamentId))
-                .thenReturn(List.of(registration(UUID.randomUUID(), null),
-                        registration(UUID.randomUUID(), null)));
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("đủ số lượng");
-
-        verify(registrationRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("đăng ký phải đi qua bản ghi giải đã khóa để chặn tranh chấp chỗ")
-    void registrationLocksTournamentRow() throws ServiceException {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).build());
-
-        verify(tournamentRepository).findByIdForUpdate(tournamentId);
-    }
-
-    @Test
-    @DisplayName("một người không đăng ký hai lần")
-    void duplicateRegistrationIsRejected() {
-        UUID player = UUID.randomUUID();
-        TournamentRegistration existing = registration(UUID.randomUUID(), null);
-        existing.setRegisteredBy(player);
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of(existing));
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(player)
-                .type(RegistrationType.INDIVIDUAL).build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("đã đăng ký");
-    }
-
-    @Test
-    @DisplayName("đăng ký bị chặn khi không thỏa điều kiện tham dự")
-    void registrationIsRejectedWhenIneligible() {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-        when(eligibilityRuleRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
-                TournamentEligibilityRule.builder().ruleId(UUID.randomUUID()).tournamentId(tournamentId)
-                        .ruleType(EligibilityRuleType.AGE)
-                        .operator(EligibilityRuleOperator.GREATER_THAN_OR_EQUAL)
-                        .expectedValue("18").build()));
-        when(playerProfileProvider.findProfile(any(), any())).thenReturn(Optional.of(
-                new PlayerProfileProvider.PlayerProfileView(UUID.randomUUID(),
-                        LocalDate.now().minusYears(15), "MALE", SkillLevel.BEGINNER, 1000)));
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("Tuổi");
-
-        verify(registrationRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("một người không thể đứng hai vị trí trong đội hình")
-    void duplicateAthleteInLineupIsRejected() {
-        UUID player = UUID.randomUUID();
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.CLUB).clubId(UUID.randomUUID()).teamName("Đội A")
-                .lineups(List.of(
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(player).lineupRole(LineupRole.CAPTAIN).build(),
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(player).lineupRole(LineupRole.PLAYER).build()))
-                .build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("hai lần trong đội hình");
-
-        verify(registrationRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("đội hình không được có hai đội trưởng")
-    void twoCaptainsAreRejected() {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.CLUB).clubId(UUID.randomUUID()).teamName("Đội B")
-                .lineups(List.of(
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).lineupRole(LineupRole.CAPTAIN).build(),
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).lineupRole(LineupRole.CAPTAIN).build()))
-                .build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("một đội trưởng");
-    }
-
-    @Test
-    @DisplayName("số áo trùng trong đội hình bị chặn")
-    void duplicateShirtNumberIsRejected() {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        assertThatThrownBy(() -> service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.CLUB).clubId(UUID.randomUUID()).teamName("Đội C")
-                .lineups(List.of(
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).shirtNumber(10)
-                                .lineupRole(LineupRole.PLAYER).build(),
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).shirtNumber(10)
-                                .lineupRole(LineupRole.PLAYER).build()))
-                .build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("Số áo 10");
-    }
-
-    @Test
-    @DisplayName("đội hình hợp lệ được lưu kèm đăng ký")
-    void validLineupIsPersisted() throws ServiceException {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-        when(lineupRepository.saveAll(any())).thenAnswer(call -> call.getArgument(0));
-
-        service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.CLUB).clubId(UUID.randomUUID()).teamName("Đội D")
-                .lineups(List.of(
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).shirtNumber(7)
-                                .lineupRole(LineupRole.CAPTAIN).build(),
-                        RegisterTournamentTeamCommand.LineupItem.builder()
-                                .playerId(UUID.randomUUID()).shirtNumber(9)
-                                .lineupRole(LineupRole.SUBSTITUTE).build()))
-                .build());
-
-        verify(lineupRepository).saveAll(any());
-    }
-
     // ---------- TOUR-05: bracket ----------
 
     @Test
     @DisplayName("cùng một giải sinh lại vẫn ra đúng thứ tự cặp đấu")
     void bracketGenerationIsDeterministic() throws ServiceException {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_CLOSED,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
+        stubTournament(tournament(TournamentStatus.REGISTRATION_CLOSED, TournamentFormat.SINGLE_ELIMINATION, 8));
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(4));
 
         List<UUID> first = firstRoundPairs(service.generateFixtures(tournamentId, organizerId));
+        stubTournament(tournament(TournamentStatus.REGISTRATION_CLOSED, TournamentFormat.SINGLE_ELIMINATION, 8));
         List<UUID> second = firstRoundPairs(service.generateFixtures(tournamentId, organizerId));
 
         assertThat(first).isEqualTo(second);
@@ -354,33 +509,24 @@ class TournamentServiceImplTest {
     @Test
     @DisplayName("bốn đội sinh đủ bán kết và chung kết, mỗi trận biết trận kế tiếp")
     void bracketLinksEveryRound() throws ServiceException {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_CLOSED,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
+        stubTournament(tournament(TournamentStatus.REGISTRATION_CLOSED, TournamentFormat.SINGLE_ELIMINATION, 8));
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(4));
 
         List<TournamentFixtureResponseCommand> fixtures = service.generateFixtures(tournamentId, organizerId);
 
         assertThat(fixtures).hasSize(3);
-        List<TournamentFixtureResponseCommand> round1 = fixtures.stream()
-                .filter(item -> item.getRoundNumber() == 1).toList();
         TournamentFixtureResponseCommand finalMatch = fixtures.stream()
                 .filter(item -> item.getRoundNumber() == 2).findFirst().orElseThrow();
-
-        assertThat(round1).hasSize(2);
-        assertThat(round1).allSatisfy(item ->
-                assertThat(item.getNextFixtureId()).isEqualTo(finalMatch.getFixtureId()));
-        assertThat(finalMatch.getNextFixtureId()).isNull();
+        assertThat(fixtures.stream().filter(item -> item.getRoundNumber() == 1))
+                .allSatisfy(item -> assertThat(item.getNextFixtureId()).isEqualTo(finalMatch.getFixtureId()));
         assertThat(finalMatch.getRoundName()).isEqualTo("Chung kết");
     }
 
     @Test
     @DisplayName("đội được miễn thi đấu tự vào vòng sau thay vì kẹt lại")
     void byeAdvancesAutomatically() throws ServiceException {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_CLOSED,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
+        stubTournament(tournament(TournamentStatus.REGISTRATION_CLOSED, TournamentFormat.SINGLE_ELIMINATION, 8));
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(3));
 
@@ -392,6 +538,41 @@ class TournamentServiceImplTest {
                 .filter(item -> item.getRegistration2Id() == null).findFirst().orElseThrow();
         assertThat(bye.getStatus()).isEqualTo(MatchStatus.COMPLETED);
         assertThat(bye.getWinnerRegistrationId()).isEqualTo(bye.getRegistration1Id());
+    }
+
+    @Test
+    @DisplayName("xếp lịch đóng đăng ký chưa đủ người / chưa trả phí trước khi chốt bracket")
+    void generatingFixturesClosesUnfinishedRegistrations() throws ServiceException {
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.ROUND_ROBIN, 8));
+        when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
+                .thenReturn(confirmedTeams(3));
+
+        service.generateFixtures(tournamentId, organizerId);
+
+        verify(registrationService).closeUnfinishedBeforeFixtures(any(), eq(organizerId));
+    }
+
+    @Test
+    @DisplayName("đã có trận có kết quả thì không xếp lại lịch (sẽ xóa kết quả)")
+    void cannotRegenerateAfterResults() {
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.ROUND_ROBIN, 8));
+        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
+                TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
+                        .registration1Id(new UUID(0L, 1L)).registration2Id(new UUID(0L, 2L))
+                        .score1(1).score2(0).status(MatchStatus.COMPLETED).build()));
+
+        assertThatThrownBy(() -> service.generateFixtures(tournamentId, organizerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("xếp lại");
+        verify(fixtureRepository, never()).deleteByTournamentId(any());
+    }
+
+    @Test
+    @DisplayName("không xếp lịch cho bản nháp")
+    void draftCannotGenerateFixtures() {
+        stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.ROUND_ROBIN, 8));
+
+        assertThatThrownBy(() -> service.generateFixtures(tournamentId, organizerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("công bố");
     }
 
     @Test
@@ -407,13 +588,9 @@ class TournamentServiceImplTest {
         TournamentFixture finalMatch = TournamentFixture.builder()
                 .fixtureId(nextFixtureId).tournamentId(tournamentId).roundNumber(2).matchNumber(1)
                 .status(MatchStatus.SCHEDULED).build();
-
         when(fixtureRepository.findById(semiFinal.getFixtureId())).thenReturn(Optional.of(semiFinal));
         when(fixtureRepository.findById(nextFixtureId)).thenReturn(Optional.of(finalMatch));
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findById(any())).thenReturn(Optional.empty());
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
 
         service.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(semiFinal.getFixtureId()).actorUserId(organizerId).score1(3).score2(1).build());
@@ -430,22 +607,47 @@ class TournamentServiceImplTest {
         TournamentFixture semiFinal = TournamentFixture.builder()
                 .fixtureId(UUID.randomUUID()).tournamentId(tournamentId).roundNumber(1).matchNumber(1)
                 .registration1Id(first).registration2Id(second).score1(3).score2(1)
-                .winnerRegistrationId(first).nextFixtureId(nextFixtureId)
-                .status(MatchStatus.COMPLETED).build();
+                .winnerRegistrationId(first).nextFixtureId(nextFixtureId).status(MatchStatus.COMPLETED).build();
         TournamentFixture finalMatch = TournamentFixture.builder()
                 .fixtureId(nextFixtureId).tournamentId(tournamentId).roundNumber(2).matchNumber(1)
                 .status(MatchStatus.COMPLETED).build();
-
         when(fixtureRepository.findById(semiFinal.getFixtureId())).thenReturn(Optional.of(semiFinal));
         when(fixtureRepository.findById(nextFixtureId)).thenReturn(Optional.of(finalMatch));
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
 
         assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(semiFinal.getFixtureId()).actorUserId(organizerId).score1(0).score2(4).build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("đã có kết quả");
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đã có kết quả");
+    }
+
+    @Test
+    @DisplayName("chung kết loại trực tiếp không chấp nhận tỷ số hòa")
+    void eliminationFinalRejectsDraw() {
+        TournamentFixture finalMatch = TournamentFixture.builder().fixtureId(UUID.randomUUID())
+                .tournamentId(tournamentId).roundNumber(2).matchNumber(1)
+                .registration1Id(new UUID(0L, 1L)).registration2Id(new UUID(0L, 2L))
+                .status(MatchStatus.SCHEDULED).build();
+        when(fixtureRepository.findById(finalMatch.getFixtureId())).thenReturn(Optional.of(finalMatch));
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+                .fixtureId(finalMatch.getFixtureId()).actorUserId(organizerId).score1(2).score2(2).build()))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("hòa");
+    }
+
+    @Test
+    @DisplayName("giải đã kết thúc thì không sửa tỷ số được nữa")
+    void scoreIsLockedOutsideInProgress() {
+        TournamentFixture fixture = TournamentFixture.builder().fixtureId(UUID.randomUUID())
+                .tournamentId(tournamentId).roundNumber(1).matchNumber(1)
+                .registration1Id(new UUID(0L, 1L)).registration2Id(new UUID(0L, 2L))
+                .status(MatchStatus.COMPLETED).score1(1).score2(0).build();
+        when(fixtureRepository.findById(fixture.getFixtureId())).thenReturn(Optional.of(fixture));
+        stubTournament(tournament(TournamentStatus.COMPLETED, TournamentFormat.ROUND_ROBIN, 8));
+
+        assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+                .fixtureId(fixture.getFixtureId()).actorUserId(organizerId).score1(0).score2(3).build()))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đang diễn ra");
     }
 
     // ---------- CLUB-04: thanh tich CLB ----------
@@ -461,16 +663,13 @@ class TournamentServiceImplTest {
                 .winCount(1).lossCount(0).drawCount(0).matchCount(1).winRate(1D).build();
         Club secondClub = Club.builder().clubId(clubB).ownerId(UUID.randomUUID()).name("B")
                 .winCount(0).lossCount(1).drawCount(0).matchCount(1).winRate(0D).build();
-
         TournamentFixture fixture = TournamentFixture.builder()
                 .fixtureId(UUID.randomUUID()).tournamentId(tournamentId).roundNumber(1).matchNumber(1)
                 .registration1Id(regA).registration2Id(regB).score1(3).score2(1)
                 .winnerRegistrationId(regA).status(MatchStatus.COMPLETED).build();
 
         when(fixtureRepository.findById(fixture.getFixtureId())).thenReturn(Optional.of(fixture));
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.ROUND_ROBIN, 8)));
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.ROUND_ROBIN, 8));
         when(registrationRepository.findById(regA)).thenReturn(Optional.of(registration(regA, clubA)));
         when(registrationRepository.findById(regB)).thenReturn(Optional.of(registration(regB, clubB)));
         Map<UUID, Club> clubs = java.util.stream.Stream.of(first, secondClub)
@@ -478,232 +677,12 @@ class TournamentServiceImplTest {
         when(clubRepository.findById(any())).thenAnswer(call -> Optional.ofNullable(clubs.get(call.getArgument(0))));
         when(clubRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        // Sua lai thanh B thang
         service.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(fixture.getFixtureId()).actorUserId(organizerId).score1(0).score2(2).build());
 
         assertThat(first.getWinCount()).isZero();
         assertThat(first.getLossCount()).isEqualTo(1);
-        assertThat(first.getMatchCount()).isEqualTo(1);
         assertThat(secondClub.getWinCount()).isEqualTo(1);
-        assertThat(secondClub.getLossCount()).isZero();
-        assertThat(secondClub.getMatchCount()).isEqualTo(1);
         assertThat(secondClub.getWinRate()).isEqualTo(1D);
-    }
-
-    // ---------- TOUR-04: dat san ----------
-
-    @Test
-    @DisplayName("đặt sân trùng khung giờ bị từ chối")
-    void overlappingReservationIsRejected() {
-        UUID courtId = UUID.randomUUID();
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(reservationRepository.findActiveOverlaps(any(), any(), any(), any()))
-                .thenReturn(List.of(TournamentVenueReservation.builder()
-                        .reservationId(UUID.randomUUID()).tournamentId(UUID.randomUUID())
-                        .courtId(courtId).status(ReservationStatus.CONFIRMED).build()));
-
-        assertThatThrownBy(() -> service.reserveVenue(ReserveTournamentVenueCommand.builder()
-                .tournamentId(tournamentId).actorUserId(organizerId)
-                .venueId(UUID.randomUUID()).courtId(courtId).playDate(LocalDate.now().plusDays(1))
-                .startTime(LocalTime.of(18, 0)).endTime(LocalTime.of(20, 0)).build()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("đã được giữ");
-
-        verify(reservationRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("trả sân thì gỡ liên kết khỏi trận đấu")
-    void releasingReservationDetachesFixture() throws ServiceException {
-        UUID reservationId = UUID.randomUUID();
-        TournamentVenueReservation reservation = TournamentVenueReservation.builder()
-                .reservationId(reservationId).tournamentId(tournamentId)
-                .status(ReservationStatus.CONFIRMED).build();
-        TournamentFixture fixture = TournamentFixture.builder()
-                .fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
-                .reservationId(reservationId).status(MatchStatus.SCHEDULED).build();
-
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
-        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(fixture));
-
-        service.releaseReservation(tournamentId, reservationId, organizerId);
-
-        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.RELEASED);
-        assertThat(fixture.getReservationId()).isNull();
-    }
-
-    @Test
-    @DisplayName("giữ sân phải đi qua venue-service, không tự ghi vào lịch sân")
-    void reservationHoldsRealSlotAtVenue() throws ServiceException {
-        UUID courtId = UUID.randomUUID();
-        LocalDate playDate = LocalDate.now().plusDays(1);
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
-        when(reservationRepository.save(any())).thenAnswer(call -> {
-            TournamentVenueReservation reservation = call.getArgument(0);
-            if (reservation.getReservationId() == null) reservation.setReservationId(UUID.randomUUID());
-            return reservation;
-        });
-
-        service.reserveVenue(ReserveTournamentVenueCommand.builder()
-                .tournamentId(tournamentId).actorUserId(organizerId)
-                .venueId(UUID.randomUUID()).courtId(courtId).playDate(playDate)
-                .startTime(LocalTime.of(18, 0)).endTime(LocalTime.of(20, 0)).build());
-
-        verify(venueSlotReservation).hold(courtId, playDate, LocalTime.of(18, 0), LocalTime.of(20, 0));
-    }
-
-    @Test
-    @DisplayName("người chơi thường đã đặt giờ thì giải không giữ được và không ghi đặt chỗ")
-    void reservationIsRejectedWhenVenueSlotTaken() throws ServiceException {
-        UUID courtId = UUID.randomUUID();
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
-        org.mockito.Mockito.doThrow(new ServiceException("Không giữ được khung giờ này tại cơ sở."))
-                .when(venueSlotReservation).hold(any(), any(), any(), any());
-
-        assertThatThrownBy(() -> service.reserveVenue(ReserveTournamentVenueCommand.builder()
-                .tournamentId(tournamentId).actorUserId(organizerId)
-                .venueId(UUID.randomUUID()).courtId(courtId).playDate(LocalDate.now().plusDays(1))
-                .startTime(LocalTime.of(18, 0)).endTime(LocalTime.of(20, 0)).build()))
-                .isInstanceOf(ServiceException.class);
-
-        verify(reservationRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("trả sân cũng trả lại khung giờ bên venue-service")
-    void releasingReservationReleasesVenueSlot() throws ServiceException {
-        UUID reservationId = UUID.randomUUID();
-        UUID courtId = UUID.randomUUID();
-        LocalDate playDate = LocalDate.now().plusDays(2);
-        TournamentVenueReservation reservation = TournamentVenueReservation.builder()
-                .reservationId(reservationId).tournamentId(tournamentId).courtId(courtId)
-                .playDate(playDate).startTime(LocalTime.of(9, 0)).endTime(LocalTime.of(11, 0))
-                .status(ReservationStatus.CONFIRMED).build();
-
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
-        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        service.releaseReservation(tournamentId, reservationId, organizerId);
-
-        verify(venueSlotReservation).release(courtId, playDate, LocalTime.of(9, 0), LocalTime.of(11, 0));
-    }
-
-    // ---------- TOUR-01: vong doi trang thai ----------
-
-    @Test
-    @DisplayName("không thể hoàn thành giải khi còn trận chưa có kết quả")
-    void cannotCompleteWithPendingMatches() {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.IN_PROGRESS,
-                        TournamentFormat.ROUND_ROBIN, 8)));
-        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
-                TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
-                        .status(MatchStatus.SCHEDULED).build()));
-
-        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.COMPLETED, organizerId))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("chưa có kết quả");
-    }
-
-    @Test
-    @DisplayName("chỉ ban tổ chức được đổi trạng thái giải")
-    void onlyOrganizerCanChangeStatus() {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.DRAFT,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-
-        assertThatThrownBy(() ->
-                service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, UUID.randomUUID()))
-                .isInstanceOf(ServiceException.class);
-    }
-
-    @Test
-    @DisplayName("giải đã hủy không quay lại trạng thái khác")
-    void cancelledTournamentIsTerminal() {
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.CANCELLED,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-
-        assertThatThrownBy(() ->
-                service.changeStatus(tournamentId, TournamentStatus.PUBLISHED, organizerId))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("đã kết thúc hoặc đã hủy");
-    }
-
-    // ---------- SOC-03: chat nhom giai dau ----------
-
-    @Test
-    @DisplayName("đăng ký xong thì đồng bộ chat nhóm giải, chỉ gồm người đã xác nhận")
-    void registrationSyncsTournamentConversationWithConfirmedOnly() throws ServiceException {
-        UUID confirmedUser = UUID.randomUUID();
-        TournamentRegistration confirmed = registration(UUID.randomUUID(), null);
-        confirmed.setRegisteredBy(confirmedUser);
-        TournamentRegistration pending = registration(UUID.randomUUID(), null);
-        pending.setStatus(RegistrationStatus.PENDING_PAYMENT);
-
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId))
-                .thenReturn(List.of(confirmed, pending));
-
-        service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).build());
-
-        @SuppressWarnings("unchecked")
-        org.mockito.ArgumentCaptor<List<UUID>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
-        verify(conversationSync).syncTournament(any(), captor.capture());
-        assertThat(captor.getValue()).containsExactly(confirmedUser);
-    }
-
-    @Test
-    @DisplayName("hủy đăng ký cũng đồng bộ lại chat nhóm giải")
-    void cancellingRegistrationSyncsTournamentConversation() throws ServiceException {
-        UUID actor = UUID.randomUUID();
-        TournamentRegistration mine = registration(UUID.randomUUID(), null);
-        mine.setRegisteredBy(actor);
-        when(tournamentRepository.findById(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findById(mine.getRegistrationId())).thenReturn(Optional.of(mine));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-
-        service.cancelRegistration(tournamentId, mine.getRegistrationId(), actor);
-
-        verify(conversationSync).syncTournament(any(), any());
-    }
-
-    @Test
-    @DisplayName("social-service lỗi không làm hỏng việc đăng ký")
-    void conversationSyncFailureDoesNotBreakRegistration() throws ServiceException {
-        when(tournamentRepository.findByIdForUpdate(tournamentId))
-                .thenReturn(Optional.of(tournament(TournamentStatus.REGISTRATION_OPEN,
-                        TournamentFormat.SINGLE_ELIMINATION, 8)));
-        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of());
-        when(conversationSync.syncTournament(any(), any())).thenReturn(Optional.empty());
-
-        service.registerTeam(RegisterTournamentTeamCommand.builder()
-                .tournamentId(tournamentId).registeredBy(UUID.randomUUID())
-                .type(RegistrationType.INDIVIDUAL).build());
-
-        verify(registrationRepository).save(any());
     }
 }

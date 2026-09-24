@@ -66,6 +66,24 @@ public class TournamentRegistrationRepositoryImpl implements TournamentRegistrat
     }
 
     @Override
+    public List<TournamentRegistration> findByStatusAndPaymentDeadlineBefore(RegistrationStatus status,
+                                                                           java.time.LocalDateTime deadline) {
+        return jpaTournamentRegistrationRepository.findByStatusAndPaymentDeadlineBefore(status, deadline).stream()
+                .map(tournamentRegistrationEntityMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TournamentRegistration> findByStatus(RegistrationStatus status) {
+        return jpaTournamentRegistrationRepository.findByStatus(status).stream()
+                .map(tournamentRegistrationEntityMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UUID> findTournamentIdsByParticipant(UUID userId, List<RegistrationStatus> statuses) {
+        return jpaTournamentRegistrationRepository.findTournamentIdsByParticipant(userId, statuses);
+    }
+
+    @Override
     public void deleteById(UUID registrationId) {
         jpaTournamentRegistrationRepository.deleteById(registrationId);
     }

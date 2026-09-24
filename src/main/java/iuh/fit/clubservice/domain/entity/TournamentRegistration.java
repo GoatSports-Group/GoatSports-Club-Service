@@ -28,5 +28,6 @@ public class TournamentRegistration extends BaseEntity {
     private String statusReason;
     private LocalDateTime registeredAt;
     private LocalDateTime confirmedAt;
+    private LocalDateTime paymentDeadline;
     private List<TournamentLineup> lineups;
 }

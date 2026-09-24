@@ -1,11 +1,9 @@
 package iuh.fit.clubservice.application.service;
 
 import iuh.fit.clubservice.application.dto.request.CreateTournamentCommand;
-import iuh.fit.clubservice.application.dto.request.RegisterTournamentTeamCommand;
 import iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateFixtureResultCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentFixtureResponseCommand;
-import iuh.fit.clubservice.application.dto.response.TournamentRegistrationResponseCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentResponseCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentStandingResponseCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentVenueReservationResponseCommand;
@@ -22,15 +20,13 @@ import java.util.UUID;
 public interface TournamentService {
     Page<TournamentResponseCommand> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable);
 
-    TournamentResponseCommand getTournamentDetails(UUID tournamentId) throws ServiceException;
+    Page<TournamentResponseCommand> getMyTournaments(UUID userId, boolean organizing, Pageable pageable);
+
+    TournamentResponseCommand getTournamentDetails(UUID tournamentId, UUID viewerId) throws ServiceException;
 
     TournamentResponseCommand createTournament(CreateTournamentCommand command) throws ServiceException;
 
-    TournamentRegistrationResponseCommand registerTeam(RegisterTournamentTeamCommand command) throws ServiceException;
-
-    void cancelRegistration(UUID tournamentId, UUID registrationId, UUID actorUserId) throws ServiceException;
-
-    List<TournamentRegistrationResponseCommand> getTournamentTeams(UUID tournamentId);
+    TournamentResponseCommand updateTournament(UUID tournamentId, CreateTournamentCommand command) throws ServiceException;
 
     List<TournamentFixtureResponseCommand> generateFixtures(UUID tournamentId, UUID actorUserId) throws ServiceException;
 

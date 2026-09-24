@@ -7,7 +7,11 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.TournamentFormat;
 import lombok.*;
 import java.time.LocalDate;
+import iuh.fit.clubservice.domain.service.EligibilityPolicy;
+
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Getter
@@ -30,6 +34,13 @@ public class CreateTournamentCommand {
     private LocalDate endDate;
     private List<String> rules;
     private List<EligibilityRuleItem> eligibilityRules;
+    private Boolean publish;
+    private UUID venueId;
+    private List<UUID> courtIds;
+    private LocalTime dailyStartTime;
+    private LocalTime dailyEndTime;
+    private Integer matchDurationMinutes;
+    private String playFormat;
 
     @Getter
     @Setter
@@ -52,6 +63,33 @@ public class CreateTournamentCommand {
         }
         if (maxParticipants != null && maxParticipants < 2) {
             throw new ServiceException("Giải đấu cần ít nhất 2 người hoặc đội.");
+        }
+        if (venueId == null || courtIds == null || courtIds.isEmpty()) {
+            throw new ServiceException("Chọn cơ sở và ít nhất một sân cho giải.");
+        }
+        if (courtIds.stream().distinct().count() != courtIds.size()) {
+            throw new ServiceException("Một sân bị chọn hai lần.");
+        }
+        if (dailyStartTime == null || dailyEndTime == null || !dailyEndTime.isAfter(dailyStartTime)) {
+            throw new ServiceException("Giờ kết thúc thi đấu mỗi ngày phải sau giờ bắt đầu.");
+        }
+        if (matchDurationMinutes == null || matchDurationMinutes < 15 || matchDurationMinutes > 240) {
+            throw new ServiceException("Mỗi trận kéo dài từ 15 đến 240 phút.");
+        }
+        if (java.time.Duration.between(dailyStartTime, dailyEndTime).toMinutes() < matchDurationMinutes) {
+            throw new ServiceException("Khung giờ mỗi ngày phải đủ cho ít nhất một trận.");
+        }
+        var format = iuh.fit.clubservice.domain.service.SportParticipationPolicy.find(playFormat)
+                .orElseThrow(() -> new ServiceException("Hình thức thi đấu không hợp lệ."));
+        if (format.sport() != sportType) {
+            throw new ServiceException("Hình thức thi đấu không thuộc môn đã chọn.");
+        }
+        if (eligibilityRules != null) {
+            for (EligibilityRuleItem item : eligibilityRules) {
+                Optional<String> problem = EligibilityPolicy.invalidRule(
+                        item.getRuleType(), item.getOperator(), item.getExpectedValue());
+                if (problem.isPresent()) throw new ServiceException(problem.get());
+            }
         }
     }
 }

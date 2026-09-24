@@ -1,10 +1,12 @@
 package iuh.fit.clubservice.infrastructure.persistence.entity;
 
+import iuh.fit.clubservice.domain.enums.LineupMemberStatus;
 import iuh.fit.clubservice.domain.enums.LineupRole;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -36,4 +38,11 @@ public class TournamentLineupEntity extends BaseEntity {
 
     @Column(name = "shirt_number")
     private Integer shirtNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "member_status", nullable = false, length = 20)
+    private LineupMemberStatus memberStatus;
+
+    @Column(name = "responded_at")
+    private LocalDateTime respondedAt;
 }

@@ -19,6 +19,10 @@ public class TournamentConverter {
                         .map(item -> CreateTournamentCommand.EligibilityRuleItem.builder()
                                 .ruleType(item.getRuleType()).operator(item.getOperator())
                                 .expectedValue(item.getExpectedValue()).build()).toList())
+                .publish(request.getPublish())
+                .venueId(request.getVenueId()).courtIds(request.getCourtIds())
+                .dailyStartTime(request.getDailyStartTime()).dailyEndTime(request.getDailyEndTime())
+                .matchDurationMinutes(request.getMatchDurationMinutes()).playFormat(request.getPlayFormat())
                 .build();
     }
 
@@ -30,7 +34,8 @@ public class TournamentConverter {
                 .shirtNumber(item.getShirtNumber()).build()).toList();
         return RegisterTournamentTeamCommand.builder().tournamentId(tournamentId).registeredBy(registeredBy)
                 .playerId(request.getPlayerId()).clubId(request.getClubId()).teamName(request.getTeamName())
-                .type(request.getType()).skillLevel(request.getSkillLevel()).lineups(lineups).build();
+                .type(request.getType()).skillLevel(request.getSkillLevel()).lineups(lineups)
+                .captainShirtNumber(request.getCaptainShirtNumber()).build();
     }
 
     public ReserveTournamentVenueCommand toCommand(UUID tournamentId, UUID actorId,

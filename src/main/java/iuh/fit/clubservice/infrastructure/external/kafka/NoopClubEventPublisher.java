@@ -1,6 +1,7 @@
 package iuh.fit.clubservice.infrastructure.external.kafka;
 
 import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
+import iuh.fit.clubservice.application.port.external.TournamentEventPublisher;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
 import iuh.fit.clubservice.domain.entity.ClubInvitation;
@@ -14,6 +15,12 @@ import java.util.UUID;
 
 @Configuration
 public class NoopClubEventPublisher {
+    @Bean
+    @ConditionalOnMissingBean(TournamentEventPublisher.class)
+    TournamentEventPublisher noopTournamentEventPublisher() {
+        return (eventType, tournament, receiverId, actorId, payload) -> { };
+    }
+
     @Bean
     @ConditionalOnMissingBean(ClubEventPublisher.class)
     ClubEventPublisher noopClubEventPublisher() {

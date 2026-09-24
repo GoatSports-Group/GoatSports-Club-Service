@@ -2,6 +2,7 @@ package iuh.fit.clubservice.domain.service;
 
 import iuh.fit.clubservice.domain.entity.TournamentEligibilityRule;
 import iuh.fit.clubservice.domain.enums.EligibilityRuleOperator;
+import iuh.fit.clubservice.domain.enums.EligibilityRuleType;
 import iuh.fit.clubservice.domain.enums.SkillLevel;
 
 import java.util.Arrays;
@@ -134,6 +135,58 @@ public final class EligibilityPolicy {
         };
         return ok ? Optional.empty()
                 : Optional.of(label + " không thỏa điều kiện tham dự (" + describe(rule) + ").");
+    }
+
+    /**
+     * Kiem tra luat luc ban to chuc luu giai. Luat khong doc duoc se bi danh gia la "khong dat"
+     * (fail-closed) nen neu de lot, khong ai dang ky duoc giai.
+     */
+    public static Optional<String> invalidRule(EligibilityRuleType type, EligibilityRuleOperator operator, String raw) {
+        if (type == null || operator == null || raw == null || raw.isBlank()) {
+            return Optional.of("Điều kiện tham dự thiếu loại, toán tử hoặc giá trị.");
+        }
+        String value = raw.trim();
+        return switch (type) {
+            case AGE, ELO_RATING, TEAM_SIZE -> validNumber(operator, value) ? Optional.empty()
+                    : Optional.of("Giá trị điều kiện số không hợp lệ: " + value + ".");
+            case SKILL_LEVEL -> operator != EligibilityRuleOperator.BETWEEN
+                    && Arrays.stream(value.split(",")).allMatch(item -> parseSkill(item) != null)
+                    && (operator == EligibilityRuleOperator.IN || !value.contains(","))
+                    ? Optional.empty() : Optional.of("Trình độ trong điều kiện tham dự không hợp lệ.");
+            case GENDER -> isTextOperator(operator) && Arrays.stream(value.split(","))
+                    .map(item -> item.trim().toUpperCase()).allMatch(item -> item.equals("MALE")
+                            || item.equals("FEMALE") || item.equals("OTHER"))
+                    ? Optional.empty() : Optional.of("Giới tính trong điều kiện tham dự không hợp lệ.");
+            case CLUB_MEMBERSHIP -> isTextOperator(operator) && Arrays.stream(value.split(","))
+                    .allMatch(EligibilityPolicy::isUuid)
+                    ? Optional.empty() : Optional.of("Câu lạc bộ trong điều kiện tham dự không hợp lệ.");
+        };
+    }
+
+    private static boolean validNumber(EligibilityRuleOperator operator, String value) {
+        if (operator == EligibilityRuleOperator.IN) {
+            return Arrays.stream(value.split(",")).allMatch(item -> toInt(item) != null);
+        }
+        if (operator == EligibilityRuleOperator.BETWEEN) {
+            String[] bounds = value.split("[,-]");
+            return bounds.length == 2 && toInt(bounds[0]) != null && toInt(bounds[1]) != null
+                    && toInt(bounds[0]) <= toInt(bounds[1]);
+        }
+        return toInt(value) != null;
+    }
+
+    private static boolean isTextOperator(EligibilityRuleOperator operator) {
+        return operator == EligibilityRuleOperator.EQUAL || operator == EligibilityRuleOperator.NOT_EQUAL
+                || operator == EligibilityRuleOperator.IN;
+    }
+
+    private static boolean isUuid(String value) {
+        try {
+            UUID.fromString(value.trim());
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     private static String describe(TournamentEligibilityRule rule) {

@@ -23,7 +23,7 @@ public class ReserveTournamentVenueCommand {
     private LocalTime endTime;
 
     public void validate() throws ServiceException {
-        if (venueId == null || courtId == null) throw new ServiceException("Thiếu thông tin cơ sở hoặc sân.");
+        if (courtId == null) throw new ServiceException("Chọn sân cho trận đấu.");
         if (playDate == null || startTime == null || endTime == null) {
             throw new ServiceException("Thiếu ngày hoặc khung giờ đặt sân.");
         }
