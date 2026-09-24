@@ -73,6 +73,9 @@ class ClubServiceImplTest {
     @Mock private ClubMediaStorage mediaStorage;
 
     private ClubServiceImpl service;
+    private ClubActivityServiceImpl activities;
+    private ClubInvitationServiceImpl invitations;
+    private ClubMatchServiceImpl matchService;
 
     private final UUID clubId = UUID.randomUUID();
     private final UUID ownerId = UUID.randomUUID();
@@ -82,11 +85,15 @@ class ClubServiceImplTest {
 
     @BeforeEach
     void setUp() throws ServiceException {
-        service = new ClubServiceImpl(
-                clubRepository, memberRepository, activityRepository,
-                invitationRepository, tournamentRegistrationRepository, tournamentFixtureRepository,
-                tournamentRepository, conversationSync, eventPublisher, mediaStorage
-        );
+        ClubSupport support = new ClubSupport(clubRepository, memberRepository, tournamentRegistrationRepository,
+                conversationSync);
+        service = new ClubServiceImpl(support, clubRepository, memberRepository, invitationRepository,
+                tournamentRegistrationRepository, tournamentRepository, eventPublisher, mediaStorage);
+        activities = new ClubActivityServiceImpl(support, activityRepository, memberRepository, eventPublisher);
+        invitations = new ClubInvitationServiceImpl(support, clubRepository, memberRepository, invitationRepository,
+                eventPublisher);
+        matchService = new ClubMatchServiceImpl(support, tournamentRegistrationRepository, tournamentFixtureRepository,
+                tournamentRepository);
 
         when(clubRepository.save(any())).thenAnswer(call -> {
             Club club = call.getArgument(0);
@@ -449,7 +456,7 @@ class ClubServiceImplTest {
     @Test
     @DisplayName("sua hoat dong chan moc ket thuc truoc moc bat dau")
     void activityUpdateRejectsInvertedTime() {
-        assertThatThrownBy(() -> service.updateClubActivity(UpdateClubActivityCommand.builder()
+        assertThatThrownBy(() -> activities.updateClubActivity(UpdateClubActivityCommand.builder()
                 .clubId(clubId).activityId(UUID.randomUUID()).actorUserId(ownerId)
                 .title("Tap luyen")
                 .startAt(LocalDateTime.now().plusDays(2))
@@ -467,7 +474,7 @@ class ClubServiceImplTest {
                 .activityId(activityId).clubId(UUID.randomUUID()).title("Hoat dong CLB khac")
                 .startAt(LocalDateTime.now()).endAt(LocalDateTime.now().plusHours(2)).build()));
 
-        assertThatThrownBy(() -> service.updateClubActivity(UpdateClubActivityCommand.builder()
+        assertThatThrownBy(() -> activities.updateClubActivity(UpdateClubActivityCommand.builder()
                 .clubId(clubId).activityId(activityId).actorUserId(ownerId).title("Sua")
                 .startAt(LocalDateTime.now().plusDays(1)).endAt(LocalDateTime.now().plusDays(1).plusHours(2))
                 .build()))
@@ -483,7 +490,7 @@ class ClubServiceImplTest {
                 .activityId(activityId).clubId(clubId).title("Tap luyen")
                 .startAt(LocalDateTime.now()).endAt(LocalDateTime.now().plusHours(2)).build()));
 
-        service.deleteClubActivity(clubId, activityId, ownerId);
+        activities.deleteClubActivity(clubId, activityId, ownerId);
 
         verify(activityRepository).deleteById(activityId);
     }
@@ -503,7 +510,7 @@ class ClubServiceImplTest {
                 memberWithRole(UUID.randomUUID(), ownerId, ClubRole.OWNER),
                 memberWithRole(membershipId, memberUserId, ClubRole.MEMBER)));
 
-        service.createClubActivity(CreateClubActivityCommand.builder()
+        activities.createClubActivity(CreateClubActivityCommand.builder()
                 .clubId(clubId).creatorId(ownerId).title("Tap luyen thu 7")
                 .startAt(LocalDateTime.now().plusDays(1))
                 .endAt(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -527,7 +534,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE)).thenReturn(List.of(
                 memberWithRole(UUID.randomUUID(), ownerId, ClubRole.OWNER)));
 
-        service.createClubActivity(CreateClubActivityCommand.builder()
+        activities.createClubActivity(CreateClubActivityCommand.builder()
                 .clubId(clubId).creatorId(ownerId).title("Tap rieng")
                 .startAt(LocalDateTime.now().plusDays(1))
                 .endAt(LocalDateTime.now().plusDays(1).plusHours(2))
@@ -621,7 +628,7 @@ class ClubServiceImplTest {
             return saved;
         });
 
-        var response = service.inviteMember(clubId, memberUserId, "Vào đá với anh em nhé", ownerId);
+        var response = invitations.inviteMember(clubId, memberUserId, "Vào đá với anh em nhé", ownerId);
 
         assertThat(response.getStatus()).isEqualTo(ClubInvitationStatus.PENDING);
         verify(eventPublisher).invitationSent(any(), any());
@@ -634,7 +641,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.of(
                 memberWithRole(membershipId, memberUserId, ClubRole.MEMBER)));
 
-        assertThatThrownBy(() -> service.inviteMember(clubId, UUID.randomUUID(), null, memberUserId))
+        assertThatThrownBy(() -> invitations.inviteMember(clubId, UUID.randomUUID(), null, memberUserId))
                 .isInstanceOf(ServiceException.class);
     }
 
@@ -645,7 +652,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.of(
                 memberWithRole(membershipId, memberUserId, ClubRole.MEMBER)));
 
-        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+        assertThatThrownBy(() -> invitations.inviteMember(clubId, memberUserId, null, ownerId))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("đã là thành viên");
     }
@@ -660,7 +667,7 @@ class ClubServiceImplTest {
                 clubId, memberUserId, ClubInvitationStatus.PENDING))
                 .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
 
-        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+        assertThatThrownBy(() -> invitations.inviteMember(clubId, memberUserId, null, ownerId))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("đang chờ");
     }
@@ -675,7 +682,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
         when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        var response = service.acceptInvitation(invitationId, memberUserId);
+        var response = invitations.acceptInvitation(invitationId, memberUserId);
 
         assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
         verify(conversationSync).sync(any(), any());
@@ -691,7 +698,7 @@ class ClubServiceImplTest {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
         when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        service.declineInvitation(invitationId, memberUserId);
+        invitations.declineInvitation(invitationId, memberUserId);
 
         verify(memberRepository, never()).save(any());
         verify(eventPublisher).invitationAnswered(any(), any(), eq(false));
@@ -704,7 +711,7 @@ class ClubServiceImplTest {
         when(invitationRepository.findById(invitationId))
                 .thenReturn(Optional.of(pendingInvitation(invitationId, memberUserId, ownerId)));
 
-        assertThatThrownBy(() -> service.acceptInvitation(invitationId, UUID.randomUUID()))
+        assertThatThrownBy(() -> invitations.acceptInvitation(invitationId, UUID.randomUUID()))
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining("không dành cho bạn");
     }
@@ -719,7 +726,7 @@ class ClubServiceImplTest {
         when(activityRepository.findUpcomingByClubId(eq(clubId), any(LocalDateTime.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(activity), pageable, 1));
 
-        var page = service.getClubActivitiesPage(clubId, pageable);
+        var page = activities.getClubActivitiesPage(clubId, pageable);
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("title").containsExactly("Buổi tập chiến thuật");
@@ -749,7 +756,7 @@ class ClubServiceImplTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
                 Tournament.builder().tournamentId(tournamentId).name("GOAT Community Cup").build()));
 
-        var matches = service.getClubRecentMatches(clubId, 3);
+        var matches = matchService.getClubRecentMatches(clubId, 3);
 
         assertThat(matches).hasSize(1);
         assertThat(matches.get(0).getOpponentName()).isEqualTo("Weekend FC");
@@ -758,7 +765,7 @@ class ClubServiceImplTest {
         assertThat(matches.get(0).getResult()).isEqualTo("WIN");
         assertThat(matches.get(0).getPlayedAt()).isEqualTo(playedAt);
 
-        var page = service.getClubMatchesPage(clubId, PageRequest.of(0, 3));
+        var page = matchService.getClubMatchesPage(clubId, PageRequest.of(0, 3));
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
     }
@@ -843,6 +850,24 @@ class ClubServiceImplTest {
     }
 
     @Test
+    @DisplayName("đội CLB đang chờ đủ người nhận lời vẫn giữ suất nên cũng chặn giải tán")
+    void cannotDisbandWhileClubTeamIsStillForming() {
+        UUID tournamentId = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of(
+                TournamentRegistration.builder().registrationId(UUID.randomUUID()).tournamentId(tournamentId)
+                        .clubId(clubId).status(RegistrationStatus.PENDING_MEMBERS).build()));
+        when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
+                Tournament.builder().tournamentId(tournamentId).name("Giải mùa thu")
+                        .status(TournamentStatus.REGISTRATION_OPEN).build()));
+
+        assertThatThrownBy(() -> service.disbandClub(clubId, ownerId))
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining("Giải mùa thu");
+        verify(clubRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Giai tan roi thi giai da ket thuc khong con can tro nua")
     void canDisbandWhenOnlyFinishedTournamentsRemain() throws Exception {
         UUID tournamentId = UUID.randomUUID();
@@ -873,7 +898,7 @@ class ClubServiceImplTest {
         assertThatThrownBy(() -> service.updateClub(UpdateClubCommand.builder().clubId(clubId)
                 .actorUserId(ownerId).name("Tên mới").build()))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
-        assertThatThrownBy(() -> service.inviteMember(clubId, memberUserId, null, ownerId))
+        assertThatThrownBy(() -> invitations.inviteMember(clubId, memberUserId, null, ownerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
         assertThatThrownBy(() -> service.removeMember(clubId, membershipId, false, ownerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã giải tán");
@@ -993,7 +1018,7 @@ class ClubServiceImplTest {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
         when(invitationRepository.findById(invitationId)).thenReturn(Optional.of(invitation));
 
-        service.cancelInvitation(clubId, invitationId, ownerId);
+        invitations.cancelInvitation(clubId, invitationId, ownerId);
 
         assertThat(invitation.getStatus()).isEqualTo(ClubInvitationStatus.CANCELLED);
         assertThat(invitation.getRespondedAt()).isNotNull();
@@ -1013,9 +1038,9 @@ class ClubServiceImplTest {
         when(invitationRepository.findById(answeredId)).thenReturn(Optional.of(answered));
         when(invitationRepository.findById(foreignId)).thenReturn(Optional.of(foreign));
 
-        assertThatThrownBy(() -> service.cancelInvitation(clubId, answeredId, ownerId))
+        assertThatThrownBy(() -> invitations.cancelInvitation(clubId, answeredId, ownerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã trả lời");
-        assertThatThrownBy(() -> service.cancelInvitation(clubId, foreignId, ownerId))
+        assertThatThrownBy(() -> invitations.cancelInvitation(clubId, foreignId, ownerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("Không tìm thấy");
         verify(invitationRepository, never()).save(any());
     }
@@ -1031,7 +1056,7 @@ class ClubServiceImplTest {
         when(invitationRepository.findById(invitationId))
                 .thenReturn(Optional.of(pendingInvitation(invitationId, UUID.randomUUID(), ownerId)));
 
-        assertThatThrownBy(() -> service.cancelInvitation(clubId, invitationId, memberUserId))
+        assertThatThrownBy(() -> invitations.cancelInvitation(clubId, invitationId, memberUserId))
                 .isInstanceOf(ServiceException.class);
         verify(invitationRepository, never()).save(any());
     }

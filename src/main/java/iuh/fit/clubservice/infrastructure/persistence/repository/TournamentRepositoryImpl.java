@@ -63,7 +63,7 @@ public class TournamentRepositoryImpl implements TournamentRepository {
         return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
     }
 
-    /** Cung luat voi TournamentServiceImpl.effectiveStatus, dich sang SQL de phan trang dung. */
+    /** Cùng luật với TournamentLifecyclePolicy.effectiveStatus, dịch sang SQL để phân trang đúng. */
     private Specification<TournamentEntity> effectiveStatus(TournamentStatus status, LocalDate today) {
         return switch (status) {
             case PUBLISHED -> (root, query, cb) -> cb.and(root.get("status").in(DATE_DRIVEN),

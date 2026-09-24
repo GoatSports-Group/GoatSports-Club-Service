@@ -52,6 +52,7 @@ class TournamentRegistrationServiceImplTest {
     @Mock private TournamentEventPublisher eventPublisher;
 
     private TournamentRegistrationServiceImpl service;
+    private TournamentTeamServiceImpl teams;
     private final UUID tournamentId = UUID.randomUUID();
     private final UUID organizerId = UUID.randomUUID();
     private final Map<UUID, TournamentRegistration> registrations = new LinkedHashMap<>();
@@ -61,9 +62,13 @@ class TournamentRegistrationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new TournamentRegistrationServiceImpl(tournamentRepository, registrationRepository, lineupRepository,
-                paymentRepository, eligibilityRuleRepository, clubRepository, clubMemberRepository, playerProfileProvider,
-                conversationSync, feePayment, eventPublisher);
+        TournamentRegistrationSupport support = new TournamentRegistrationSupport(tournamentRepository,
+                registrationRepository, lineupRepository, paymentRepository, eligibilityRuleRepository, clubMemberRepository,
+                playerProfileProvider, conversationSync, eventPublisher);
+        service = new TournamentRegistrationServiceImpl(support, tournamentRepository, registrationRepository,
+                lineupRepository, paymentRepository, clubRepository, clubMemberRepository, feePayment);
+        teams = new TournamentTeamServiceImpl(support, tournamentRepository, registrationRepository, lineupRepository,
+                clubRepository);
         useTournament("BADMINTON_SINGLES", 150_000D, 8);
 
         when(eligibilityRuleRepository.findByTournamentId(any())).thenReturn(List.of());
@@ -225,13 +230,13 @@ class TournamentRegistrationServiceImplTest {
         assertThat(created.getLineups()).extracting("memberStatus")
                 .containsExactlyInAnyOrder(LineupMemberStatus.ACCEPTED, LineupMemberStatus.INVITED);
         verify(eventPublisher).publish(eq(TournamentEventPublisher.TEAM_INVITED), any(), eq(partner), eq(captain), any());
-        assertThat(service.getMyInvitations(partner)).hasSize(1);
+        assertThat(teams.getMyInvitations(partner)).hasSize(1);
 
-        var accepted = service.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
+        var accepted = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
 
         assertThat(accepted.getStatus()).isEqualTo(RegistrationStatus.PENDING_PAYMENT);
         assertThat(accepted.getPaymentDeadline()).isNotNull();
-        assertThat(service.getMyInvitations(partner)).isEmpty();
+        assertThat(teams.getMyInvitations(partner)).isEmpty();
     }
 
     @Test
@@ -242,7 +247,7 @@ class TournamentRegistrationServiceImplTest {
         UUID partner = UUID.randomUUID();
         var created = service.register(team(captain, "Đôi B", partner));
 
-        var answered = service.respondInvitation(tournamentId, created.getRegistrationId(), partner, false);
+        var answered = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, false);
 
         assertThat(answered.getStatus()).isEqualTo(RegistrationStatus.PENDING_MEMBERS);
         verify(eventPublisher).publish(eq(TournamentEventPublisher.TEAM_ANSWERED), any(), eq(captain), eq(partner), any());
@@ -256,7 +261,7 @@ class TournamentRegistrationServiceImplTest {
         var first = service.register(team(UUID.randomUUID(), "Đôi 1", shared));
         var second = service.register(team(UUID.randomUUID(), "Đôi 2", shared));
 
-        service.respondInvitation(tournamentId, first.getRegistrationId(), shared, true);
+        teams.respondInvitation(tournamentId, first.getRegistrationId(), shared, true);
 
         assertThat(lineups.values().stream().filter(row -> row.getRegistrationId().equals(second.getRegistrationId())
                 && row.getPlayerId().equals(shared)).findFirst().orElseThrow().getMemberStatus())
@@ -316,11 +321,11 @@ class TournamentRegistrationServiceImplTest {
         UUID captain = UUID.randomUUID();
         UUID partner = UUID.randomUUID();
         var created = service.register(team(captain, "Đôi C", partner));
-        service.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
+        teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
 
-        assertThatThrownBy(() -> service.removeMember(tournamentId, created.getRegistrationId(), captain, partner))
+        assertThatThrownBy(() -> teams.removeMember(tournamentId, created.getRegistrationId(), captain, partner))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("tối thiểu");
-        assertThatThrownBy(() -> service.removeMember(tournamentId, created.getRegistrationId(), captain, captain))
+        assertThatThrownBy(() -> teams.removeMember(tournamentId, created.getRegistrationId(), captain, captain))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("rút đăng ký");
     }
 

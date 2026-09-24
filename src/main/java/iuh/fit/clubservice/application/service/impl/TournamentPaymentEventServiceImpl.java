@@ -13,7 +13,7 @@ import iuh.fit.clubservice.domain.entity.TournamentPayment;
 import iuh.fit.clubservice.domain.entity.TournamentRegistration;
 import iuh.fit.clubservice.domain.enums.FeePaymentStatus;
 import iuh.fit.clubservice.domain.enums.RegistrationStatus;
-import iuh.fit.clubservice.domain.enums.TournamentStatus;
+import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,9 +58,7 @@ public class TournamentPaymentEventServiceImpl implements TournamentPaymentEvent
 
         // Tien ve cho dang ky da bi dong (qua han, bi tu choi, rut) hoac giai da chot danh sach: hoan tu dong.
         // Bracket sinh tu danh sach CONFIRMED luc xep lich, them vao luc nay se tao doi khong co tran nao.
-        boolean closedTournament = tournament.getStatus() == TournamentStatus.IN_PROGRESS
-                || tournament.getStatus() == TournamentStatus.COMPLETED
-                || tournament.getStatus() == TournamentStatus.CANCELLED;
+        boolean closedTournament = TournamentLifecyclePolicy.isRosterLocked(tournament);
         if (registration.getStatus() != RegistrationStatus.PENDING_PAYMENT || closedTournament) {
             String reason = closedTournament
                     ? "Thanh toán về sau khi giải đã chốt danh sách"

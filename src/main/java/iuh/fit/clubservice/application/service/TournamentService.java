@@ -17,6 +17,11 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Giải đấu của chủ sân: tạo (kèm kiểm tra đủ sân và giữ sân bên venue-service), sửa bản nháp, công bố, hủy, kết thúc.
+ * Lịch/kết quả ở {@link TournamentFixtureService}, xếp sân ở {@link TournamentScheduleService},
+ * suất đăng ký ở {@link TournamentRegistrationService}.
+ */
 public interface TournamentService {
     Page<TournamentResponseCommand> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable);
 
@@ -28,23 +33,15 @@ public interface TournamentService {
 
     TournamentResponseCommand updateTournament(UUID tournamentId, CreateTournamentCommand command) throws ServiceException;
 
-    List<TournamentFixtureResponseCommand> generateFixtures(UUID tournamentId, UUID actorUserId) throws ServiceException;
 
-    List<TournamentFixtureResponseCommand> getFixtures(UUID tournamentId);
 
-    TournamentFixtureResponseCommand updateFixtureResult(UpdateFixtureResultCommand command) throws ServiceException;
 
-    List<TournamentStandingResponseCommand> getStandings(UUID tournamentId);
 
     List<TournamentEligibilityRule> getEligibilityRules(UUID tournamentId);
 
     TournamentResponseCommand changeStatus(UUID tournamentId, TournamentStatus target, UUID actorUserId)
             throws ServiceException;
 
-    TournamentVenueReservationResponseCommand reserveVenue(ReserveTournamentVenueCommand command)
-            throws ServiceException;
 
-    List<TournamentVenueReservationResponseCommand> getReservations(UUID tournamentId);
 
-    void releaseReservation(UUID tournamentId, UUID reservationId, UUID actorUserId) throws ServiceException;
 }

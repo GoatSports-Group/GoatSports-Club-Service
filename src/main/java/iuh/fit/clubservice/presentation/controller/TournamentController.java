@@ -6,7 +6,10 @@ import iuh.fit.clubservice.application.dto.response.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.TournamentRegistrationService;
+import iuh.fit.clubservice.application.service.TournamentFixtureService;
+import iuh.fit.clubservice.application.service.TournamentScheduleService;
 import iuh.fit.clubservice.application.service.TournamentService;
+import iuh.fit.clubservice.application.service.TournamentTeamService;
 import iuh.fit.clubservice.domain.entity.TournamentEligibilityRule;
 import iuh.fit.clubservice.domain.enums.*;
 import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
@@ -28,7 +31,10 @@ import java.util.*;
 @RequiredArgsConstructor
 public class TournamentController {
     private final TournamentService tournamentService;
+    private final TournamentFixtureService fixtureService;
+    private final TournamentScheduleService scheduleService;
     private final TournamentRegistrationService registrationService;
+    private final TournamentTeamService teamService;
     private final TournamentConverter converter;
     private final CurrentUserProvider currentUserProvider;
 
@@ -55,8 +61,8 @@ public class TournamentController {
 
     @GetMapping("/invitations/me")
     @ApiMessage("Lấy lời mời vào đội thành công")
-    public List<TournamentRegistrationService.TeamInvitation> myInvitations() throws ServiceException {
-        return registrationService.getMyInvitations(requireUser());
+    public List<TournamentTeamService.TeamInvitation> myInvitations() throws ServiceException {
+        return teamService.getMyInvitations(requireUser());
     }
 
     @GetMapping("/{tournamentId}")
@@ -86,7 +92,7 @@ public class TournamentController {
     @ApiMessage("Đã trả lời lời mời vào đội")
     public TournamentRegistrationResponseCommand respond(@PathVariable UUID tournamentId, @PathVariable UUID registrationId,
             @Valid @RequestBody RespondInvitationRequest request) throws ServiceException {
-        return registrationService.respondInvitation(tournamentId, registrationId, requireUser(), request.accept());
+        return teamService.respondInvitation(tournamentId, registrationId, requireUser(), request.accept());
     }
 
     @PostMapping("/{tournamentId}/registrations/{registrationId}/members")
@@ -97,14 +103,14 @@ public class TournamentController {
                 .map(item -> RegisterTournamentTeamCommand.LineupItem.builder().playerId(item.getPlayerId())
                         .playerName(item.getPlayerName()).lineupRole(item.getLineupRole())
                         .shirtNumber(item.getShirtNumber()).build()).toList();
-        return registrationService.inviteMembers(tournamentId, registrationId, requireUser(), invitees);
+        return teamService.inviteMembers(tournamentId, registrationId, requireUser(), invitees);
     }
 
     @DeleteMapping("/{tournamentId}/registrations/{registrationId}/members/{playerId}")
     @ApiMessage("Đã cập nhật đội hình")
     public TournamentRegistrationResponseCommand removeMember(@PathVariable UUID tournamentId,
             @PathVariable UUID registrationId, @PathVariable UUID playerId) throws ServiceException {
-        return registrationService.removeMember(tournamentId, registrationId, requireUser(), playerId);
+        return teamService.removeMember(tournamentId, registrationId, requireUser(), playerId);
     }
 
     @PostMapping("/{tournamentId}/registrations/{registrationId}/checkout")
@@ -129,21 +135,21 @@ public class TournamentController {
 
     @PostMapping("/{tournamentId}/generate-fixtures")
     public List<TournamentFixtureResponseCommand> generate(@PathVariable UUID tournamentId) throws ServiceException {
-        return tournamentService.generateFixtures(tournamentId, requireUser());
+        return fixtureService.generateFixtures(tournamentId, requireUser());
     }
 
     @GetMapping("/{tournamentId}/fixtures") public List<TournamentFixtureResponseCommand> fixtures(@PathVariable UUID tournamentId) {
-        return tournamentService.getFixtures(tournamentId);
+        return fixtureService.getFixtures(tournamentId);
     }
 
     @PutMapping("/{tournamentId}/fixtures/{fixtureId}/result")
     public TournamentFixtureResponseCommand result(@PathVariable UUID tournamentId, @PathVariable UUID fixtureId,
             @Valid @RequestBody UpdateFixtureResultRequest request) throws ServiceException {
-        return tournamentService.updateFixtureResult(converter.toCommand(fixtureId, requireUser(), request));
+        return fixtureService.updateFixtureResult(converter.toCommand(fixtureId, requireUser(), request));
     }
 
     @GetMapping("/{tournamentId}/standings") public List<TournamentStandingResponseCommand> standings(@PathVariable UUID tournamentId) {
-        return tournamentService.getStandings(tournamentId);
+        return fixtureService.getStandings(tournamentId);
     }
 
     @PatchMapping("/{tournamentId}/status") @ApiMessage("Cập nhật trạng thái giải đấu thành công")
@@ -159,19 +165,19 @@ public class TournamentController {
 
     @GetMapping("/{tournamentId}/reservations") @ApiMessage("Lấy lịch sân thi đấu thành công")
     public List<TournamentVenueReservationResponseCommand> reservations(@PathVariable UUID tournamentId) {
-        return tournamentService.getReservations(tournamentId);
+        return scheduleService.getReservations(tournamentId);
     }
 
     @PostMapping("/{tournamentId}/reservations") @ResponseStatus(HttpStatus.CREATED)
     @ApiMessage("Đã xếp sân cho trận đấu")
     public TournamentVenueReservationResponseCommand reserve(@PathVariable UUID tournamentId,
             @Valid @RequestBody ReserveTournamentVenueRequest request) throws ServiceException {
-        return tournamentService.reserveVenue(converter.toCommand(tournamentId, requireUser(), request));
+        return scheduleService.reserveVenue(converter.toCommand(tournamentId, requireUser(), request));
     }
 
     @DeleteMapping("/{tournamentId}/reservations/{reservationId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void release(@PathVariable UUID tournamentId, @PathVariable UUID reservationId) throws ServiceException {
-        tournamentService.releaseReservation(tournamentId, reservationId, requireUser());
+        scheduleService.releaseReservation(tournamentId, reservationId, requireUser());
     }
 
     private UUID requireUser() throws ServiceException {

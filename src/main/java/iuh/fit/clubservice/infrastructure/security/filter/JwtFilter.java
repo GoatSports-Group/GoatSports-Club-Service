@@ -29,6 +29,8 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(@NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response, @NonNull FilterChain chain) throws ServletException, IOException {
         try {
+            // Chỉ gateway biết secret này và nó đã xóa mọi X-User-* do client tự gửi, nên các header danh tính
+            // bên dưới mới đáng tin. Request đi thẳng vào service (không qua gateway) bị chặn ở đây.
             String secret = request.getHeader("X-Gateway-Secret");
             if (secret == null || !gatewaySecret.equals(secret)) {
                 response.setStatus(HttpStatus.FORBIDDEN.value());

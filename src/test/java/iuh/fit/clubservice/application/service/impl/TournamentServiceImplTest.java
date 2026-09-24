@@ -55,6 +55,8 @@ class TournamentServiceImplTest {
     @Mock private TournamentRegistrationService registrationService;
 
     private TournamentServiceImpl service;
+    private TournamentFixtureServiceImpl fixtureService;
+    private TournamentScheduleServiceImpl schedule;
 
     private final UUID tournamentId = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private final UUID organizerId = UUID.randomUUID();
@@ -65,7 +67,10 @@ class TournamentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TournamentServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
-                eligibilityRuleRepository, reservationRepository, clubRepository, venueCourtHold, registrationService);
+                eligibilityRuleRepository, reservationRepository, venueCourtHold, registrationService);
+        fixtureService = new TournamentFixtureServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
+                clubRepository, registrationService);
+        schedule = new TournamentScheduleServiceImpl(tournamentRepository, fixtureRepository, reservationRepository);
 
         when(eligibilityRuleRepository.findByTournamentId(any())).thenReturn(List.of());
         when(tournamentRepository.save(any())).thenAnswer(call -> {
@@ -385,7 +390,7 @@ class TournamentServiceImplTest {
         stubTournament(tournament);
         when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
 
-        var response = service.reserveVenue(reserve(court1, tournament.getStartDate(), LocalTime.of(8, 0), LocalTime.of(9, 0)));
+        var response = schedule.reserveVenue(reserve(court1, tournament.getStartDate(), LocalTime.of(8, 0), LocalTime.of(9, 0)));
 
         assertThat(response.getVenueId()).isEqualTo(venueId);
         assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
@@ -398,16 +403,16 @@ class TournamentServiceImplTest {
         Tournament tournament = tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8);
         stubTournament(tournament);
 
-        assertThatThrownBy(() -> service.reserveVenue(reserve(UUID.randomUUID(), tournament.getStartDate(),
+        assertThatThrownBy(() -> schedule.reserveVenue(reserve(UUID.randomUUID(), tournament.getStartDate(),
                 LocalTime.of(8, 0), LocalTime.of(9, 0))))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("danh sách sân");
-        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getEndDate().plusDays(1),
+        assertThatThrownBy(() -> schedule.reserveVenue(reserve(court1, tournament.getEndDate().plusDays(1),
                 LocalTime.of(8, 0), LocalTime.of(9, 0))))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("thời gian diễn ra");
-        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+        assertThatThrownBy(() -> schedule.reserveVenue(reserve(court1, tournament.getStartDate(),
                 LocalTime.of(20, 30), LocalTime.of(21, 30))))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("khung");
-        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+        assertThatThrownBy(() -> schedule.reserveVenue(reserve(court1, tournament.getStartDate(),
                 LocalTime.of(8, 0), LocalTime.of(8, 30))))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("thời lượng");
     }
@@ -420,7 +425,7 @@ class TournamentServiceImplTest {
         when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of(
                 TournamentVenueReservation.builder().reservationId(UUID.randomUUID()).build()));
 
-        assertThatThrownBy(() -> service.reserveVenue(reserve(court1, tournament.getStartDate(),
+        assertThatThrownBy(() -> schedule.reserveVenue(reserve(court1, tournament.getStartDate(),
                 LocalTime.of(8, 0), LocalTime.of(9, 0))))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("trận khác");
     }
@@ -437,7 +442,7 @@ class TournamentServiceImplTest {
         when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(fixture));
 
-        service.releaseReservation(tournamentId, reservationId, organizerId);
+        schedule.releaseReservation(tournamentId, reservationId, organizerId);
 
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.RELEASED);
         assertThat(fixture.getReservationId()).isNull();
@@ -457,7 +462,7 @@ class TournamentServiceImplTest {
                         .registration1Id(strong).registration2Id(weak).score1(5).score2(0)
                         .winnerRegistrationId(strong).status(MatchStatus.COMPLETED).build()));
 
-        List<TournamentStandingResponseCommand> standings = service.getStandings(tournamentId);
+        List<TournamentStandingResponseCommand> standings = fixtureService.getStandings(tournamentId);
 
         assertThat(standings.get(0).getRegistrationId()).isEqualTo(strong);
         assertThat(standings.get(0).getPoints()).isEqualTo(3);
@@ -480,7 +485,7 @@ class TournamentServiceImplTest {
                         .registration1Id(worse).registration2Id(victim).score1(1).score2(0)
                         .status(MatchStatus.COMPLETED).build()));
 
-        List<TournamentStandingResponseCommand> standings = service.getStandings(tournamentId);
+        List<TournamentStandingResponseCommand> standings = fixtureService.getStandings(tournamentId);
 
         assertThat(standings.get(0).getRegistrationId()).isEqualTo(better);
         assertThat(standings.get(1).getRegistrationId()).isEqualTo(worse);
@@ -495,9 +500,9 @@ class TournamentServiceImplTest {
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(4));
 
-        List<UUID> first = firstRoundPairs(service.generateFixtures(tournamentId, organizerId));
+        List<UUID> first = firstRoundPairs(fixtureService.generateFixtures(tournamentId, organizerId));
         stubTournament(tournament(TournamentStatus.REGISTRATION_CLOSED, TournamentFormat.SINGLE_ELIMINATION, 8));
-        List<UUID> second = firstRoundPairs(service.generateFixtures(tournamentId, organizerId));
+        List<UUID> second = firstRoundPairs(fixtureService.generateFixtures(tournamentId, organizerId));
 
         assertThat(first).isEqualTo(second);
     }
@@ -517,7 +522,7 @@ class TournamentServiceImplTest {
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(4));
 
-        List<TournamentFixtureResponseCommand> fixtures = service.generateFixtures(tournamentId, organizerId);
+        List<TournamentFixtureResponseCommand> fixtures = fixtureService.generateFixtures(tournamentId, organizerId);
 
         assertThat(fixtures).hasSize(3);
         TournamentFixtureResponseCommand finalMatch = fixtures.stream()
@@ -534,7 +539,7 @@ class TournamentServiceImplTest {
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(3));
 
-        List<TournamentFixtureResponseCommand> fixtures = service.generateFixtures(tournamentId, organizerId);
+        List<TournamentFixtureResponseCommand> fixtures = fixtureService.generateFixtures(tournamentId, organizerId);
         Map<Integer, List<TournamentFixtureResponseCommand>> byRound = fixtures.stream()
                 .collect(Collectors.groupingBy(TournamentFixtureResponseCommand::getRoundNumber));
 
@@ -551,7 +556,7 @@ class TournamentServiceImplTest {
         when(registrationRepository.findByTournamentIdAndStatus(tournamentId, RegistrationStatus.CONFIRMED))
                 .thenReturn(confirmedTeams(3));
 
-        service.generateFixtures(tournamentId, organizerId);
+        fixtureService.generateFixtures(tournamentId, organizerId);
 
         verify(registrationService).closeUnfinishedBeforeFixtures(any(), eq(organizerId));
     }
@@ -565,7 +570,7 @@ class TournamentServiceImplTest {
                         .registration1Id(new UUID(0L, 1L)).registration2Id(new UUID(0L, 2L))
                         .score1(1).score2(0).status(MatchStatus.COMPLETED).build()));
 
-        assertThatThrownBy(() -> service.generateFixtures(tournamentId, organizerId))
+        assertThatThrownBy(() -> fixtureService.generateFixtures(tournamentId, organizerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("xếp lại");
         verify(fixtureRepository, never()).deleteByTournamentId(any());
     }
@@ -575,7 +580,7 @@ class TournamentServiceImplTest {
     void draftCannotGenerateFixtures() {
         stubTournament(tournament(TournamentStatus.DRAFT, TournamentFormat.ROUND_ROBIN, 8));
 
-        assertThatThrownBy(() -> service.generateFixtures(tournamentId, organizerId))
+        assertThatThrownBy(() -> fixtureService.generateFixtures(tournamentId, organizerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("công bố");
     }
 
@@ -596,7 +601,7 @@ class TournamentServiceImplTest {
         when(fixtureRepository.findById(nextFixtureId)).thenReturn(Optional.of(finalMatch));
         stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
 
-        service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+        fixtureService.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(semiFinal.getFixtureId()).actorUserId(organizerId).score1(3).score2(1).build());
 
         assertThat(finalMatch.getRegistration1Id()).isEqualTo(winner);
@@ -619,7 +624,7 @@ class TournamentServiceImplTest {
         when(fixtureRepository.findById(nextFixtureId)).thenReturn(Optional.of(finalMatch));
         stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
 
-        assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+        assertThatThrownBy(() -> fixtureService.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(semiFinal.getFixtureId()).actorUserId(organizerId).score1(0).score2(4).build()))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã có kết quả");
     }
@@ -634,7 +639,7 @@ class TournamentServiceImplTest {
         when(fixtureRepository.findById(finalMatch.getFixtureId())).thenReturn(Optional.of(finalMatch));
         stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
 
-        assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+        assertThatThrownBy(() -> fixtureService.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(finalMatch.getFixtureId()).actorUserId(organizerId).score1(2).score2(2).build()))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("hòa");
     }
@@ -649,7 +654,7 @@ class TournamentServiceImplTest {
         when(fixtureRepository.findById(fixture.getFixtureId())).thenReturn(Optional.of(fixture));
         stubTournament(tournament(TournamentStatus.COMPLETED, TournamentFormat.ROUND_ROBIN, 8));
 
-        assertThatThrownBy(() -> service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+        assertThatThrownBy(() -> fixtureService.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(fixture.getFixtureId()).actorUserId(organizerId).score1(0).score2(3).build()))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đang diễn ra");
     }
@@ -681,7 +686,7 @@ class TournamentServiceImplTest {
         when(clubRepository.findById(any())).thenAnswer(call -> Optional.ofNullable(clubs.get(call.getArgument(0))));
         when(clubRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        service.updateFixtureResult(UpdateFixtureResultCommand.builder()
+        fixtureService.updateFixtureResult(UpdateFixtureResultCommand.builder()
                 .fixtureId(fixture.getFixtureId()).actorUserId(organizerId).score1(0).score2(2).build());
 
         assertThat(first.getWinCount()).isZero();

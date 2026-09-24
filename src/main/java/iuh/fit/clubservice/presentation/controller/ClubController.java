@@ -10,6 +10,9 @@ import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.dto.response.ScoutedPlayerResponseCommand;
 import iuh.fit.clubservice.application.service.ClubScoutingService;
 import iuh.fit.clubservice.application.service.ClubService;
+import iuh.fit.clubservice.application.service.ClubActivityService;
+import iuh.fit.clubservice.application.service.ClubInvitationService;
+import iuh.fit.clubservice.application.service.ClubMatchService;
 import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.application.dto.response.ClubInvitationResponseCommand;
@@ -33,6 +36,9 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ClubController {
     private final ClubService clubService;
+    private final ClubActivityService activityService;
+    private final ClubInvitationService invitationService;
+    private final ClubMatchService matchService;
     private final ClubScoutingService scoutingService;
     private final ClubConverter converter;
     private final CurrentUserProvider currentUserProvider;
@@ -56,30 +62,30 @@ public class ClubController {
 
     @GetMapping("/me/invitations") @ApiMessage("Lấy lời mời vào câu lạc bộ thành công")
     public List<ClubInvitationResponseCommand> myInvitations() throws ServiceException {
-        return clubService.getMyInvitations(requireUser());
+        return invitationService.getMyInvitations(requireUser());
     }
 
     @PostMapping("/{clubId}/invitations") @ResponseStatus(HttpStatus.CREATED)
     @ApiMessage("Gửi lời mời thành công")
     public ClubInvitationResponseCommand invite(@PathVariable UUID clubId,
             @Valid @RequestBody InviteClubMemberRequest request) throws ServiceException {
-        return clubService.inviteMember(clubId, request.getInviteeId(), request.getMessage(), requireUser());
+        return invitationService.inviteMember(clubId, request.getInviteeId(), request.getMessage(), requireUser());
     }
 
     @PostMapping("/invitations/{invitationId}/accept") @ApiMessage("Đã tham gia câu lạc bộ")
     public ClubMemberResponseCommand acceptInvitation(@PathVariable UUID invitationId) throws ServiceException {
-        return clubService.acceptInvitation(invitationId, requireUser());
+        return invitationService.acceptInvitation(invitationId, requireUser());
     }
 
     @PostMapping("/invitations/{invitationId}/decline") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void declineInvitation(@PathVariable UUID invitationId) throws ServiceException {
-        clubService.declineInvitation(invitationId, requireUser());
+        invitationService.declineInvitation(invitationId, requireUser());
     }
 
     @GetMapping("/me/activities") @ApiMessage("Lấy hoạt động sắp tới thành công")
     public List<ClubActivityResponseCommand> myUpcomingActivities(
             @RequestParam(defaultValue = "10") int limit) throws ServiceException {
-        return clubService.getMyUpcomingActivities(requireUser(), limit);
+        return activityService.getMyUpcomingActivities(requireUser(), limit);
     }
 
     @GetMapping("/{clubId}") @ApiMessage("Lấy chi tiết câu lạc bộ thành công")
@@ -144,7 +150,7 @@ public class ClubController {
 
     @PostMapping("/{clubId}/invitations/{invitationId}/cancel") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelInvitation(@PathVariable UUID clubId, @PathVariable UUID invitationId) throws ServiceException {
-        clubService.cancelInvitation(clubId, invitationId, requireUser());
+        invitationService.cancelInvitation(clubId, invitationId, requireUser());
     }
 
     @PatchMapping("/{clubId}/owner") @ApiMessage("Chuyển quyền sở hữu câu lạc bộ thành công")
@@ -166,7 +172,7 @@ public class ClubController {
     @GetMapping("/me/activities/page") @ApiMessage("Lấy hoạt động sắp tới phân trang thành công")
     public Page<ClubActivityResponseCommand> myUpcomingActivitiesPage(
             @PageableDefault(size = 3) Pageable pageable) throws ServiceException {
-        return clubService.getMyUpcomingActivitiesPage(requireUser(), pageable);
+        return activityService.getMyUpcomingActivitiesPage(requireUser(), pageable);
     }
 
     @GetMapping("/{clubId}/members/page") @ApiMessage("Lấy danh sách thành viên phân trang thành công")
@@ -186,31 +192,31 @@ public class ClubController {
 
     @GetMapping("/{clubId}/activities") @ApiMessage("Lấy hoạt động câu lạc bộ thành công")
     public List<ClubActivityResponseCommand> activities(@PathVariable UUID clubId) {
-        return clubService.getClubActivities(clubId);
+        return activityService.getClubActivities(clubId);
     }
 
     @GetMapping("/{clubId}/activities/page") @ApiMessage("Lấy hoạt động câu lạc bộ phân trang thành công")
     public Page<ClubActivityResponseCommand> activitiesPage(@PathVariable UUID clubId,
             @PageableDefault(size = 3) Pageable pageable) {
-        return clubService.getClubActivitiesPage(clubId, pageable);
+        return activityService.getClubActivitiesPage(clubId, pageable);
     }
 
     @GetMapping("/{clubId}/matches/recent") @ApiMessage("Lấy các trận gần nhất của câu lạc bộ thành công")
     public List<ClubRecentMatchResponseCommand> recentMatches(@PathVariable UUID clubId,
             @RequestParam(defaultValue = "3") int limit) throws ServiceException {
-        return clubService.getClubRecentMatches(clubId, limit);
+        return matchService.getClubRecentMatches(clubId, limit);
     }
 
     @GetMapping("/{clubId}/matches/page") @ApiMessage("Lấy lịch sử thi đấu phân trang thành công")
     public Page<ClubRecentMatchResponseCommand> matchesPage(@PathVariable UUID clubId,
             @PageableDefault(size = 3) Pageable pageable) throws ServiceException {
-        return clubService.getClubMatchesPage(clubId, pageable);
+        return matchService.getClubMatchesPage(clubId, pageable);
     }
 
     @PostMapping("/{clubId}/activities") @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo hoạt động thành công")
     public ClubActivityResponseCommand createActivity(@PathVariable UUID clubId,
             @Valid @RequestBody CreateClubActivityRequest request) throws ServiceException {
-        return clubService.createClubActivity(converter.toCommand(clubId, requireUser(), request));
+        return activityService.createClubActivity(converter.toCommand(clubId, requireUser(), request));
     }
 
     @PatchMapping("/{clubId}") @ApiMessage("Cập nhật câu lạc bộ thành công")
@@ -238,7 +244,7 @@ public class ClubController {
     @PutMapping("/{clubId}/activities/{activityId}") @ApiMessage("Cập nhật hoạt động thành công")
     public ClubActivityResponseCommand updateActivity(@PathVariable UUID clubId, @PathVariable UUID activityId,
             @Valid @RequestBody UpdateClubActivityRequest request) throws ServiceException {
-        return clubService.updateClubActivity(UpdateClubActivityCommand.builder()
+        return activityService.updateClubActivity(UpdateClubActivityCommand.builder()
                 .clubId(clubId).activityId(activityId).actorUserId(requireUser())
                 .title(request.getTitle()).description(request.getDescription()).venueId(request.getVenueId())
                 .startAt(request.getStartAt()).endAt(request.getEndAt()).build());
@@ -246,7 +252,7 @@ public class ClubController {
 
     @DeleteMapping("/{clubId}/activities/{activityId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteActivity(@PathVariable UUID clubId, @PathVariable UUID activityId) throws ServiceException {
-        clubService.deleteClubActivity(clubId, activityId, requireUser());
+        activityService.deleteClubActivity(clubId, activityId, requireUser());
     }
 
     private UUID requireUser() throws ServiceException {
