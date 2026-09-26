@@ -35,6 +35,9 @@ public class TournamentResponseCommand {
     private ParticipantType participantType;
     private Integer rosterMin;
     private Integer rosterMax;
+    private UUID championRegistrationId;
+    private String championName;
+    private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

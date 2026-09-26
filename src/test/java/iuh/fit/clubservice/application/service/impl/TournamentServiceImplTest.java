@@ -53,6 +53,8 @@ class TournamentServiceImplTest {
     @Mock private ClubRepository clubRepository;
     @Mock private VenueCourtHold venueCourtHold;
     @Mock private TournamentRegistrationService registrationService;
+    @Mock private iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository lineupRepository;
+    @Mock private iuh.fit.clubservice.application.port.external.PlayerProfileProvider playerProfileProvider;
 
     private TournamentServiceImpl service;
     private TournamentFixtureServiceImpl fixtureService;
@@ -67,7 +69,8 @@ class TournamentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TournamentServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
-                eligibilityRuleRepository, reservationRepository, venueCourtHold, registrationService);
+                eligibilityRuleRepository, reservationRepository, venueCourtHold, registrationService,
+                lineupRepository, playerProfileProvider);
         fixtureService = new TournamentFixtureServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
                 clubRepository, registrationService);
         schedule = new TournamentScheduleServiceImpl(tournamentRepository, fixtureRepository, reservationRepository);
@@ -222,6 +225,36 @@ class TournamentServiceImplTest {
 
     @Test
     @DisplayName("hủy giải trả sân bên venue, đóng lịch trận và đóng mọi đăng ký (kèm hoàn phí)")
+    void inProgressTournamentCannotBeCancelled() {
+        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
+
+        assertThatThrownBy(() -> service.changeStatus(tournamentId, TournamentStatus.CANCELLED, organizerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đang diễn ra");
+        verify(venueCourtHold, never()).release(any());
+    }
+
+    @Test
+    @DisplayName("giải đã kết thúc trả về nhà vô địch là đội thắng trận chung kết")
+    void completedTournamentReportsChampion() throws ServiceException {
+        UUID finalist = UUID.randomUUID();
+        UUID winner = UUID.randomUUID();
+        stubTournament(tournament(TournamentStatus.COMPLETED, TournamentFormat.SINGLE_ELIMINATION, 2));
+        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
+                TournamentRegistration.builder().registrationId(winner).tournamentId(tournamentId).teamName("Code FC")
+                        .registeredBy(UUID.randomUUID()).status(RegistrationStatus.CONFIRMED).build(),
+                TournamentRegistration.builder().registrationId(finalist).tournamentId(tournamentId).teamName("Gym FC")
+                        .registeredBy(UUID.randomUUID()).status(RegistrationStatus.CONFIRMED).build()));
+        when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(TournamentFixture.builder()
+                .tournamentId(tournamentId).roundNumber(1).registration1Id(winner).registration2Id(finalist)
+                .winnerRegistrationId(winner).status(MatchStatus.COMPLETED).build()));
+
+        var response = service.getTournamentDetails(tournamentId, organizerId);
+
+        assertThat(response.getChampionRegistrationId()).isEqualTo(winner);
+        assertThat(response.getChampionName()).isEqualTo("Code FC");
+    }
+
+    @Test
     void cancellingReleasesCourtsAndClosesRegistrations() throws ServiceException {
         stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
         TournamentVenueReservation match = TournamentVenueReservation.builder().reservationId(UUID.randomUUID())
@@ -386,7 +419,8 @@ class TournamentServiceImplTest {
     @Test
     @DisplayName("xếp trận vào sân của giải không gọi venue: sân đã được giữ nguyên khối")
     void schedulingMatchUsesHeldCourts() throws ServiceException {
-        Tournament tournament = tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8);
+        // Trước khi giải bắt đầu được giữ chỗ trước (không gắn trận); đang diễn ra thì phải gắn trận cụ thể.
+        Tournament tournament = tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8);
         stubTournament(tournament);
         when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
 
@@ -438,7 +472,7 @@ class TournamentServiceImplTest {
                 .reservationId(reservationId).tournamentId(tournamentId).status(ReservationStatus.CONFIRMED).build();
         TournamentFixture fixture = TournamentFixture.builder().fixtureId(UUID.randomUUID()).tournamentId(tournamentId)
                 .reservationId(reservationId).status(MatchStatus.SCHEDULED).build();
-        stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.SINGLE_ELIMINATION, 8));
+        stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
         when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(fixtureRepository.findByTournamentId(tournamentId)).thenReturn(List.of(fixture));
 

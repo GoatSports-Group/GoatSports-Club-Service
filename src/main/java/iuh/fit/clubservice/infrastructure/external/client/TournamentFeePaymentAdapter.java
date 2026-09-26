@@ -42,7 +42,8 @@ public class TournamentFeePaymentAdapter implements TournamentFeePayment {
     public boolean refund(UUID paymentId, UUID registrationId, UUID requestedBy, double amount, String reason) {
         try {
             paymentClient.createRefund(paymentId, requestedBy, "tournament-refund:" + registrationId,
-                    new PaymentClient.RefundPayload(reason, amount, false));
+                    // autoDisburse: có tài khoản ngân hàng thì chuyển ngay; chưa có thì chờ và tự chuyển khi người chơi liên kết.
+                    new PaymentClient.RefundPayload(reason, amount, true));
             return true;
         } catch (RuntimeException exception) {
             log.warn("Không gửi được yêu cầu hoàn lệ phí đăng ký {}: {}", registrationId, exception.getMessage());

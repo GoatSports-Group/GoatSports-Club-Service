@@ -68,6 +68,18 @@ public class AuthPlayerProfileAdapter implements PlayerProfileProvider {
         }
     }
 
+    @Override
+    public Optional<String> findFullName(UUID userId) {
+        try {
+            AuthClient.UserDetailView user = unwrap(authClient.getUserById(userId));
+            return user == null || user.fullName() == null || user.fullName().isBlank()
+                    ? Optional.empty() : Optional.of(user.fullName().trim());
+        } catch (RuntimeException exception) {
+            log.warn("Không đọc được tên người chơi {}: {}", userId, exception.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private AuthClient.SportProfileView pickProfile(UUID userId, SportType sportType) {
         List<AuthClient.SportProfileView> profiles = unwrap(authClient.getSportProfiles(userId));
         if (profiles == null || profiles.isEmpty()) return null;

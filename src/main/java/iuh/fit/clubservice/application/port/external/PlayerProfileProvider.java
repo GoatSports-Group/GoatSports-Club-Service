@@ -16,6 +16,11 @@ import java.util.UUID;
 public interface PlayerProfileProvider {
     Optional<PlayerProfileView> findProfile(UUID userId, SportType sportType);
 
+    /** Họ tên hiển thị của người dùng (dùng cho nhà vô địch của giải cá nhân). */
+    default Optional<String> findFullName(UUID userId) {
+        return Optional.empty();
+    }
+
     List<ScoutingCandidateView> findScoutingCandidates(ScoutingFilter filter) throws ServiceException;
 
     List<ScoutingCandidateView> lookupScoutingProfiles(

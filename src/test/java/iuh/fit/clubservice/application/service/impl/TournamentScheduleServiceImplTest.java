@@ -44,7 +44,7 @@ class TournamentScheduleServiceImplTest {
     @BeforeEach
     void setUp() {
         tournament = Tournament.builder().tournamentId(tournamentId).organizerId(organizerId)
-                .status(TournamentStatus.IN_PROGRESS).build();
+                .status(TournamentStatus.PUBLISHED).build();
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(tournament));
         when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(TournamentVenueReservation.builder()
                 .reservationId(reservationId).tournamentId(tournamentId).status(ReservationStatus.CONFIRMED).build()));
@@ -66,6 +66,15 @@ class TournamentScheduleServiceImplTest {
 
         assertThatThrownBy(() -> service.releaseReservation(tournamentId, reservationId, organizerId))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đã có kết quả");
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void refusesToReleaseScheduleWhileTournamentIsInProgress() {
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+
+        assertThatThrownBy(() -> service.releaseReservation(tournamentId, reservationId, organizerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đang diễn ra");
         verify(reservationRepository, never()).save(any());
     }
 

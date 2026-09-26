@@ -18,4 +18,5 @@
     <include file="/db/changelog/schema/22-09-2026/add-club-coordinates.xml"/>
     <include file="/db/changelog/schema/23-09-2026/add-club-scouting-shortlist.xml"/>
     <include file="/db/changelog/schema/24-09-2026/tournament-venue-teams-payment.xml"/>
+    <include file="/db/changelog/schema/26-09-2026/add-tournament-completed-at.xml"/>
 </databaseChangeLog>

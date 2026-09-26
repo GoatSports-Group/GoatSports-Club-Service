@@ -12,6 +12,12 @@ import iuh.fit.clubservice.domain.enums.*;
 import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
 import iuh.fit.clubservice.domain.service.TournamentCapacityPolicy;
 import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
+import iuh.fit.clubservice.domain.service.ChampionPolicy;
+import iuh.fit.clubservice.domain.entity.TournamentRegistration;
+import iuh.fit.clubservice.domain.entity.TournamentLineup;
+import iuh.fit.clubservice.domain.enums.RegistrationStatus;
+import iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository;
+import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.UUID;
+import java.util.List;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.*;
 
 @Service
@@ -31,6 +41,8 @@ public class TournamentServiceImpl implements TournamentService {
     private final TournamentVenueReservationRepository reservationRepository;
     private final VenueCourtHold venueCourtHold;
     private final TournamentRegistrationService registrationService;
+    private final TournamentLineupRepository lineupRepository;
+    private final PlayerProfileProvider playerProfileProvider;
 
     @Override
     public Page<TournamentResponseCommand> searchTournaments(SportType sportType, TournamentStatus status,
@@ -173,6 +185,9 @@ public class TournamentServiceImpl implements TournamentService {
         if (current == TournamentStatus.COMPLETED || current == TournamentStatus.CANCELLED) {
             throw new ServiceException("Giải đấu đã kết thúc hoặc đã hủy, không thể đổi trạng thái.");
         }
+        if (target == TournamentStatus.CANCELLED && current == TournamentStatus.IN_PROGRESS) {
+            throw new ServiceException("Giải đang diễn ra, không thể hủy giữa chừng. Hãy hoàn tất các trận rồi kết thúc giải.");
+        }
         boolean allowed = switch (target) {
             case PUBLISHED -> current == TournamentStatus.DRAFT;
             case CANCELLED -> true;
@@ -197,6 +212,7 @@ public class TournamentServiceImpl implements TournamentService {
             venueCourtHold.hold(tournament, false);
         }
         tournament.setStatus(target);
+        if (target == TournamentStatus.COMPLETED) tournament.setCompletedAt(LocalDateTime.now());
         Tournament saved = tournamentRepository.save(tournament);
         if (target == TournamentStatus.CANCELLED) {
             closeOutReservations(tournamentId);
@@ -246,8 +262,9 @@ public class TournamentServiceImpl implements TournamentService {
     private String normalize(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     private TournamentResponseCommand toResponse(Tournament t) {
-        long count = registrationRepository.findByTournamentId(t.getTournamentId()).stream()
-                .filter(item -> TournamentLifecyclePolicy.holdsSeat(item.getStatus())).count();
+        List<TournamentRegistration> registrations = registrationRepository.findByTournamentId(t.getTournamentId());
+        long count = registrations.stream().filter(item -> TournamentLifecyclePolicy.holdsSeat(item.getStatus())).count();
+        Optional<TournamentRegistration> champion = champion(t, registrations);
         SportParticipationPolicy.PlayFormat format = SportParticipationPolicy.resolve(t.getSportType(), t.getPlayFormat());
         return TournamentResponseCommand.builder().tournamentId(t.getTournamentId()).organizerId(t.getOrganizerId())
                 .name(t.getName()).description(t.getDescription()).sportType(t.getSportType()).format(t.getFormat())
@@ -259,7 +276,30 @@ public class TournamentServiceImpl implements TournamentService {
                 .matchDurationMinutes(t.getMatchDurationMinutes())
                 .playFormat(format.code()).playFormatLabel(format.label()).participantType(format.participantType())
                 .rosterMin(format.rosterMin()).rosterMax(format.rosterMax())
-                .createdAt(t.getCreatedAt()).updatedAt(t.getUpdatedAt()).build();
+                .createdAt(t.getCreatedAt()).updatedAt(t.getUpdatedAt()).completedAt(t.getCompletedAt())
+                .championRegistrationId(champion.map(TournamentRegistration::getRegistrationId).orElse(null))
+                .championName(champion.map(this::displayName).orElse(null))
+                .build();
+    }
+
+    /** Nhà vô địch chỉ tính cho giải đã kết thúc, từ kết quả các trận đã lưu. */
+    private Optional<TournamentRegistration> champion(Tournament t, List<TournamentRegistration> registrations) {
+        if (t.getStatus() != TournamentStatus.COMPLETED) return Optional.empty();
+        List<UUID> confirmed = registrations.stream()
+                .filter(item -> item.getStatus() == RegistrationStatus.CONFIRMED)
+                .map(TournamentRegistration::getRegistrationId).toList();
+        return ChampionPolicy.champion(t.getFormat(), confirmed, fixtureRepository.findByTournamentId(t.getTournamentId()))
+                .flatMap(id -> registrations.stream().filter(item -> id.equals(item.getRegistrationId())).findFirst());
+    }
+
+    /** Tên đội; giải cá nhân không có tên đội thì lấy tên trong đội hình hoặc họ tên tài khoản. */
+    private String displayName(TournamentRegistration registration) {
+        if (registration.getTeamName() != null && !registration.getTeamName().isBlank()) return registration.getTeamName();
+        return lineupRepository.findByRegistrationId(registration.getRegistrationId()).stream()
+                .filter(row -> registration.getRegisteredBy().equals(row.getPlayerId()) && row.getPlayerName() != null)
+                .map(TournamentLineup::getPlayerName).findFirst()
+                .or(() -> playerProfileProvider.findFullName(registration.getRegisteredBy()))
+                .orElse("Người chơi");
     }
 
     private TournamentStatus effectiveStatus(Tournament tournament) {

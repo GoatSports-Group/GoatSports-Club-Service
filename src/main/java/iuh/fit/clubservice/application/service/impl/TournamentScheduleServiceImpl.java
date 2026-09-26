@@ -51,12 +51,21 @@ public class TournamentScheduleServiceImpl implements TournamentScheduleService 
             throw new ServiceException("Khung giờ này đã được xếp cho một trận khác.");
         }
 
+        boolean inProgress = tournament.getStatus() == TournamentStatus.IN_PROGRESS;
+        if (inProgress && command.getFixtureId() == null) {
+            throw new ServiceException("Giải đang diễn ra: chỉ xếp sân cho một trận cụ thể.");
+        }
         TournamentFixture fixture = null;
         if (command.getFixtureId() != null) {
             fixture = fixtureRepository.findById(command.getFixtureId())
                     .filter(item -> item.getTournamentId().equals(command.getTournamentId()))
                     .orElseThrow(() -> new ServiceException("Không tìm thấy trận đấu của giải này."));
             if (fixture.getStatus() == MatchStatus.COMPLETED) throw new ServiceException("Trận này đã có kết quả.");
+            if (inProgress && fixture.getReservationId() != null && reservationRepository.findById(fixture.getReservationId())
+                    .filter(item -> item.getStatus() == ReservationStatus.CONFIRMED || item.getStatus() == ReservationStatus.PENDING)
+                    .isPresent()) {
+                throw new ServiceException("Trận này đã có lịch; giải đang diễn ra nên không đổi lịch được.");
+            }
         }
 
         TournamentVenueReservation reservation = reservationRepository.save(TournamentVenueReservation.builder()
@@ -97,6 +106,10 @@ public class TournamentScheduleServiceImpl implements TournamentScheduleService 
         // Lich cua giai da khep lai hoac cua tran da co ket qua la du lieu lich su, khong duoc bo.
         if (tournament.getStatus() == TournamentStatus.COMPLETED || tournament.getStatus() == TournamentStatus.CANCELLED) {
             throw new ServiceException("Giải đấu đã kết thúc, không thể bỏ lịch sân.");
+        }
+        // Giai dang dien ra: nguoi choi da nhan lich, bo giua chung se lam lech ca giai.
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new ServiceException("Giải đang diễn ra, không thể bỏ lịch sân giữa chừng.");
         }
         boolean played = fixtureRepository.findByTournamentId(tournamentId).stream()
                 .anyMatch(item -> reservationId.equals(item.getReservationId()) && item.getStatus() == MatchStatus.COMPLETED);

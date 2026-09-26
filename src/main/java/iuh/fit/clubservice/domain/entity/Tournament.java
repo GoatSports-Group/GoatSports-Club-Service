@@ -7,6 +7,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class Tournament extends BaseEntity {
     private Integer maxParticipants;
     private Double entryFee;
     private Double prizePool;
+    private LocalDateTime completedAt;
     private LocalDate registrationOpenDate;
     private LocalDate registrationCloseDate;
     private LocalDate startDate;

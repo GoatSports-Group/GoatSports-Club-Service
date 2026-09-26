@@ -10,6 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
@@ -57,6 +58,9 @@ public class TournamentEntity extends BaseEntity {
 
     @Column(name = "prize_pool")
     private Double prizePool;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
     @Column(name = "registration_open_date")
     private LocalDate registrationOpenDate;

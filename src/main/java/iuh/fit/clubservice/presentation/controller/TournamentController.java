@@ -6,6 +6,7 @@ import iuh.fit.clubservice.application.dto.response.*;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.TournamentRegistrationService;
+import iuh.fit.clubservice.application.service.TournamentRevenueService;
 import iuh.fit.clubservice.application.service.TournamentFixtureService;
 import iuh.fit.clubservice.application.service.TournamentScheduleService;
 import iuh.fit.clubservice.application.service.TournamentService;
@@ -24,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
 import java.util.*;
 
 @RestController
@@ -31,6 +33,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class TournamentController {
     private final TournamentService tournamentService;
+    private final TournamentRevenueService revenueService;
     private final TournamentFixtureService fixtureService;
     private final TournamentScheduleService scheduleService;
     private final TournamentRegistrationService registrationService;
@@ -57,6 +60,13 @@ public class TournamentController {
     public Page<TournamentResponseCommand> mine(@RequestParam(defaultValue = "PARTICIPATING") String role,
             Pageable pageable) throws ServiceException {
         return tournamentService.getMyTournaments(requireUser(), "ORGANIZING".equalsIgnoreCase(role), pageable);
+    }
+
+    @GetMapping("/revenue/me")
+    @ApiMessage("Lấy doanh thu giải đấu thành công")
+    public TournamentRevenueService.OwnerTournamentRevenue revenue(@RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate, @RequestParam(required = false) UUID venueId) throws ServiceException {
+        return revenueService.getOwnerRevenue(requireUser(), venueId, fromDate, toDate);
     }
 
     @GetMapping("/invitations/me")
