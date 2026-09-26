@@ -42,6 +42,12 @@ public class TournamentPaymentEventServiceImpl implements TournamentPaymentEvent
         TournamentPayment payment = paymentRepository.findByRegistrationId(registrationId)
                 .orElseThrow(() -> new ServiceException("Không tìm thấy khoản lệ phí giải đấu."));
         if (Math.abs(payment.getAmount() - amount) > 0.001D) throw new ServiceException("Số tiền thanh toán không khớp lệ phí giải đấu.");
+        if (succeeded) {
+            // Lệ phí thuộc doanh thu người tổ chức (khoản nào phải hoàn thì payment-service tự trừ lại).
+            // Gọi cả ở sự kiện lặp để tự lành nếu lần trước gọi lỗi; lỗi thì ném ra để Kafka xử lý lại.
+            tournamentRepository.findById(registration.getTournamentId())
+                    .ifPresent(tournament -> feePayment.assignPayee(paymentId, tournament.getOrganizerId()));
+        }
         // Su kien lap lai (at-least-once) sau khi da xu ly: bo qua de khong hoan/xac nhan hai lan.
         if (payment.getStatus() == FeePaymentStatus.SUCCEEDED || payment.getStatus() == FeePaymentStatus.REFUND_REQUESTED) {
             return;

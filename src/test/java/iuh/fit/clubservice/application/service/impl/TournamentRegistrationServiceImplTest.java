@@ -414,6 +414,30 @@ class TournamentRegistrationServiceImplTest {
     }
 
     @Test
+    @DisplayName("gửi yêu cầu hoàn lỗi lúc rút: job gửi lại tới khi được, không hoàn hai lần")
+    void failedRefundRequestIsRetriedLater() throws ServiceException {
+        UUID player = UUID.randomUUID();
+        var registration = service.register(individual(player));
+        TournamentPayment payment = payments.get(registration.getRegistrationId());
+        payment.setStatus(FeePaymentStatus.SUCCEEDED);
+        payment.setPaymentId(UUID.randomUUID());
+        registrations.get(registration.getRegistrationId()).setStatus(RegistrationStatus.CONFIRMED);
+        when(paymentRepository.findByStatus(any())).thenAnswer(call -> payments.values().stream()
+                .filter(item -> item.getStatus() == call.getArgument(0)).toList());
+        when(feePayment.refund(any(), any(), any(), anyDouble(), anyString())).thenReturn(false);
+        service.cancel(tournamentId, registration.getRegistrationId(), player, null);
+        assertThat(service.findClosedRegistrationsAwaitingRefund()).containsExactly(registration.getRegistrationId());
+
+        when(feePayment.refund(any(), any(), any(), anyDouble(), anyString())).thenReturn(true);
+        service.retryRefund(registration.getRegistrationId());
+
+        assertThat(payment.getStatus()).isEqualTo(FeePaymentStatus.REFUND_REQUESTED);
+        assertThat(registrations.get(registration.getRegistrationId()).getStatusReason())
+                .contains("đã gửi yêu cầu hoàn 150.000 đ").doesNotContain("ban tổ chức sẽ xử lý");
+        assertThat(service.findClosedRegistrationsAwaitingRefund()).isEmpty();
+    }
+
+    @Test
     @DisplayName("ban tổ chức không từ chối được người tham gia")
     void organizerCannotRejectRegistration() throws ServiceException {
         var registration = service.register(individual(UUID.randomUUID()));

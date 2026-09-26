@@ -18,4 +18,7 @@ public interface TournamentFeePayment {
      * dang ky van bi huy/tu choi, chi la trang thai REFUND_REQUESTED khong duoc dat va can xu ly tay.
      */
     boolean refund(UUID paymentId, UUID registrationId, UUID requestedBy, double amount, String reason);
+
+    /** Ghi lệ phí đã thu vào doanh thu của người tổ chức (để họ rút về ngân hàng). Idempotent; lỗi thì ném ra. */
+    void assignPayee(UUID paymentId, UUID organizerId);
 }

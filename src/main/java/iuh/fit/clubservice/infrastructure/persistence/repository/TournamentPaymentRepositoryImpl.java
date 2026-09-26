@@ -17,6 +17,9 @@ public class TournamentPaymentRepositoryImpl implements TournamentPaymentReposit
     @Override public Optional<TournamentPayment> findByRegistrationId(UUID registrationId) {
         return repository.findByRegistrationId(registrationId).map(this::toDomain);
     }
+    @Override public java.util.List<TournamentPayment> findByStatus(iuh.fit.clubservice.domain.enums.FeePaymentStatus status) {
+        return repository.findByStatus(status).stream().map(this::toDomain).toList();
+    }
     private TournamentPaymentEntity toEntity(TournamentPayment value) {
         return TournamentPaymentEntity.builder().tournamentPaymentId(value.getTournamentPaymentId())
                 .registrationId(value.getRegistrationId()).amount(value.getAmount()).paymentId(value.getPaymentId())

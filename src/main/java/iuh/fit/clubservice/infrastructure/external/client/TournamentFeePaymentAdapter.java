@@ -39,6 +39,11 @@ public class TournamentFeePaymentAdapter implements TournamentFeePayment {
     }
 
     @Override
+    public void assignPayee(UUID paymentId, UUID organizerId) {
+        paymentClient.assignPayee(paymentId, new PaymentClient.PayeePayload(organizerId));
+    }
+
+    @Override
     public boolean refund(UUID paymentId, UUID registrationId, UUID requestedBy, double amount, String reason) {
         try {
             paymentClient.createRefund(paymentId, requestedBy, "tournament-refund:" + registrationId,

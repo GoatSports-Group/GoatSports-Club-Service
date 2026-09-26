@@ -97,6 +97,9 @@ class TournamentPaymentEventServiceImplTest {
         assertThat(registration.getConfirmedAt()).isNotNull();
         verify(registrationService).syncConversation(any());
         verify(feePayment, never()).refund(any(), any(), any(), anyDouble(), anyString());
+        // Lệ phí vào doanh thu của người tổ chức để họ rút về ngân hàng.
+        UUID organizerId = tournamentRepository.findById(tournamentId).orElseThrow().getOrganizerId();
+        verify(feePayment).assignPayee(any(), eq(organizerId));
     }
 
     @Test

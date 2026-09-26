@@ -36,4 +36,16 @@ public class TournamentRegistrationExpiryJob {
             }
         }
     }
+
+    /** Lần gửi yêu cầu hoàn lệ phí trước bị lỗi (payment-service tạm không phản hồi): gửi lại cho tới khi được. */
+    @Scheduled(fixedDelayString = "${tournament.refund-retry.delay-ms:600000}", initialDelay = 60000)
+    public void retryFailedRefundRequests() {
+        for (UUID registrationId : registrationService.findClosedRegistrationsAwaitingRefund()) {
+            try {
+                registrationService.retryRefund(registrationId);
+            } catch (RuntimeException exception) {
+                log.warn("Chưa gửi lại được yêu cầu hoàn lệ phí {}: {}", registrationId, exception.getMessage());
+            }
+        }
+    }
 }

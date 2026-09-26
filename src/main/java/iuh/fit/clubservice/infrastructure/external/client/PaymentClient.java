@@ -28,6 +28,11 @@ public interface PaymentClient {
                       @RequestHeader("Idempotency-Key") String idempotencyKey,
                       @RequestBody RefundPayload payload);
 
+    @PostMapping("/{paymentId}/payee")
+    void assignPayee(@PathVariable("paymentId") UUID paymentId, @RequestBody PayeePayload payload);
+
+    record PayeePayload(UUID payeeId) { }
+
     record CheckoutPayload(UUID payerId, UUID registrationId, Double amount, String description,
                            LocalDateTime expiresAt) { }
 

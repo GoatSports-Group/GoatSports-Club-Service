@@ -38,6 +38,12 @@ public interface TournamentRegistrationService {
 
     void expire(UUID registrationId, LocalDateTime now);
 
+    /** Đăng ký đã đóng mà lệ phí vẫn ở trạng thái đã thu: lần gửi yêu cầu hoàn trước đó bị lỗi. */
+    List<UUID> findClosedRegistrationsAwaitingRefund();
+
+    /** Gửi lại yêu cầu hoàn lệ phí (idempotent theo đăng ký phía payment-service). */
+    void retryRefund(UUID registrationId);
+
     /** status = SUCCEEDED khi khoản phí đã được trả (khi đó không có mã QR). */
     record FeeCheckout(UUID paymentId, String status, String checkoutUrl, String qrCodeContent, Double amount,
                        LocalDateTime expiresAt) { }

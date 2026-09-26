@@ -7,4 +7,6 @@ import java.util.UUID;
 
 public interface JpaTournamentPaymentRepository extends JpaRepository<TournamentPaymentEntity, UUID> {
     Optional<TournamentPaymentEntity> findByRegistrationId(UUID registrationId);
+
+    java.util.List<TournamentPaymentEntity> findByStatus(iuh.fit.clubservice.domain.enums.FeePaymentStatus status);
 }

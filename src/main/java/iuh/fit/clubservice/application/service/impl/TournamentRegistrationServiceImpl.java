@@ -293,6 +293,39 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
         }
     }
 
+    @Override
+    public List<UUID> findClosedRegistrationsAwaitingRefund() {
+        List<UUID> ids = new ArrayList<>();
+        for (TournamentPayment payment : paymentRepository.findByStatus(FeePaymentStatus.SUCCEEDED)) {
+            registrationRepository.findById(payment.getRegistrationId())
+                    .filter(item -> item.getStatus() == RegistrationStatus.CANCELLED || item.getStatus() == RegistrationStatus.REJECTED)
+                    .ifPresent(item -> ids.add(item.getRegistrationId()));
+        }
+        return ids;
+    }
+
+    @Override
+    @Transactional
+    public void retryRefund(UUID registrationId) {
+        TournamentRegistration registration = registrationRepository.findById(registrationId).orElse(null);
+        if (registration == null || (registration.getStatus() != RegistrationStatus.CANCELLED
+                && registration.getStatus() != RegistrationStatus.REJECTED)) return;
+        TournamentPayment payment = paymentRepository.findByRegistrationId(registrationId).orElse(null);
+        if (payment == null || payment.getStatus() != FeePaymentStatus.SUCCEEDED || payment.getPaymentId() == null) return;
+        UUID requestedBy = tournamentRepository.findById(registration.getTournamentId())
+                .map(Tournament::getOrganizerId).orElse(registration.getRegisteredBy());
+        String pending = " — cần hoàn lệ phí " + money(payment.getAmount()) + ", ban tổ chức sẽ xử lý.";
+        String reason = registration.getStatusReason() == null ? "Đăng ký đã đóng" : registration.getStatusReason();
+        if (!feePayment.refund(payment.getPaymentId(), registrationId, requestedBy, payment.getAmount(),
+                reason.replace(pending, ""))) {
+            return;
+        }
+        payment.setStatus(FeePaymentStatus.REFUND_REQUESTED);
+        paymentRepository.save(payment);
+        registration.setStatusReason(reason.replace(pending, " — đã gửi yêu cầu hoàn " + money(payment.getAmount()) + "."));
+        registrationRepository.save(registration);
+    }
+
     /**
      * Đóng một đăng ký: đặt trạng thái + lý do, hoàn lệ phí nếu đã thu, đồng bộ chat nếu đang ở trong giải,
      * báo cho người đăng ký và đồng đội. Lỗi hoàn phí không chặn việc đóng — ghi rõ để ban tổ chức xử lý tay.
