@@ -21,6 +21,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import iuh.fit.clubservice.domain.enums.TournamentStatus;
+import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -58,8 +60,19 @@ public class TournamentController {
     @GetMapping("/me")
     @ApiMessage("Lấy giải đấu của tôi thành công")
     public Page<TournamentResponseCommand> mine(@RequestParam(defaultValue = "PARTICIPATING") String role,
+            @RequestParam(required = false) TournamentStatus status, @RequestParam(required = false) SportType sportType,
+            @RequestParam(required = false) UUID venueId, @RequestParam(required = false) String keyword,
             Pageable pageable) throws ServiceException {
-        return tournamentService.getMyTournaments(requireUser(), "ORGANIZING".equalsIgnoreCase(role), pageable);
+        if ("ORGANIZING".equalsIgnoreCase(role)) {
+            return tournamentService.getOrganizedTournaments(requireUser(), status, sportType, venueId, keyword, pageable);
+        }
+        return tournamentService.getMyTournaments(requireUser(), false, pageable);
+    }
+
+    @GetMapping("/me/summary")
+    @ApiMessage("Lấy tổng quan giải đấu thành công")
+    public TournamentService.OrganizerSummary summary() throws ServiceException {
+        return tournamentService.getOrganizerSummary(requireUser());
     }
 
     @GetMapping("/revenue/me")

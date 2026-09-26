@@ -80,6 +80,24 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     }
 
     @Override
+    public Page<Tournament> searchOrganized(UUID organizerId, TournamentStatus status, SportType sportType, UUID venueId,
+                                            String keyword, LocalDate today, Pageable pageable) {
+        Specification<TournamentEntity> specification = (root, query, cb) -> cb.equal(root.get("organizerId"), organizerId);
+        if (status != null) specification = specification.and(effectiveStatus(status, today));
+        if (sportType != null) {
+            specification = specification.and((root, query, cb) -> cb.equal(root.get("sportType"), sportType));
+        }
+        if (venueId != null) {
+            specification = specification.and((root, query, cb) -> cb.equal(root.get("venueId"), venueId));
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
+            specification = specification.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern));
+        }
+        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+    }
+
+    @Override
     public Page<Tournament> findByOrganizerId(UUID organizerId, Pageable pageable) {
         Specification<TournamentEntity> specification = (root, query, cb) ->
                 cb.equal(root.get("organizerId"), organizerId);

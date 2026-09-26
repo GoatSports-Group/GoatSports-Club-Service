@@ -18,6 +18,7 @@ import iuh.fit.clubservice.domain.entity.TournamentLineup;
 import iuh.fit.clubservice.domain.enums.RegistrationStatus;
 import iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
+import iuh.fit.clubservice.domain.enums.SportType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +61,31 @@ public class TournamentServiceImpl implements TournamentService {
                 RegistrationStatus.PENDING_PAYMENT, RegistrationStatus.CONFIRMED, RegistrationStatus.REJECTED,
                 RegistrationStatus.CANCELLED));
         return tournamentRepository.findByIds(ids, pageable).map(this::toResponse);
+    }
+
+    @Override
+    public Page<TournamentResponseCommand> getOrganizedTournaments(UUID userId, TournamentStatus status, SportType sportType,
+                                                                   UUID venueId, String keyword, Pageable pageable) {
+        return tournamentRepository.searchOrganized(userId, status, sportType, venueId, normalize(keyword),
+                LocalDate.now(), pageable).map(this::toResponse);
+    }
+
+    @Override
+    public OrganizerSummary getOrganizerSummary(UUID userId) {
+        Map<TournamentStatus, Long> byStatus = new EnumMap<>(TournamentStatus.class);
+        for (TournamentStatus status : TournamentStatus.values()) byStatus.put(status, 0L);
+        long seats = 0;
+        List<Tournament> tournaments = tournamentRepository.findByOrganizerId(userId, Pageable.unpaged()).getContent();
+        for (Tournament tournament : tournaments) {
+            TournamentStatus status = effectiveStatus(tournament);
+            byStatus.merge(status, 1L, Long::sum);
+            // Suất giữ chỉ tính cho giải còn nhận/giữ người (chưa kết thúc, chưa hủy).
+            if (status != TournamentStatus.COMPLETED && status != TournamentStatus.CANCELLED) {
+                seats += registrationRepository.findByTournamentId(tournament.getTournamentId()).stream()
+                        .filter(item -> TournamentLifecyclePolicy.holdsSeat(item.getStatus())).count();
+            }
+        }
+        return new OrganizerSummary(byStatus, tournaments.size(), seats);
     }
 
     @Override

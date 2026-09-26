@@ -27,6 +27,15 @@ public interface TournamentService {
 
     Page<TournamentResponseCommand> getMyTournaments(UUID userId, boolean organizing, Pageable pageable);
 
+    /** Danh sách giải của chủ sân có bộ lọc (trang quản lý giải). */
+    Page<TournamentResponseCommand> getOrganizedTournaments(UUID userId, TournamentStatus status, SportType sportType,
+                                                            UUID venueId, String keyword, Pageable pageable);
+
+    /** Số giải theo từng trạng thái hiệu lực + tổng suất đang giữ, trên toàn bộ giải của chủ sân. */
+    OrganizerSummary getOrganizerSummary(UUID userId);
+
+    record OrganizerSummary(java.util.Map<TournamentStatus, Long> byStatus, long total, long seatsHeld) { }
+
     TournamentResponseCommand getTournamentDetails(UUID tournamentId, UUID viewerId) throws ServiceException;
 
     TournamentResponseCommand createTournament(CreateTournamentCommand command) throws ServiceException;

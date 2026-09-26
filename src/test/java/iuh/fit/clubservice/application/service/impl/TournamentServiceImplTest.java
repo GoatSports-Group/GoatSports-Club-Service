@@ -255,6 +255,26 @@ class TournamentServiceImplTest {
     }
 
     @Test
+    @DisplayName("tổng quan của chủ sân đếm theo trạng thái hiệu lực và chỉ tính suất của giải còn chạy")
+    void organizerSummaryCountsEffectiveStatuses() {
+        Tournament open = tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8);
+        Tournament done = tournament(TournamentStatus.COMPLETED, TournamentFormat.SINGLE_ELIMINATION, 8);
+        done.setTournamentId(UUID.randomUUID());
+        when(tournamentRepository.findByOrganizerId(eq(organizerId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(open, done)));
+        when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
+                TournamentRegistration.builder().status(RegistrationStatus.CONFIRMED).build(),
+                TournamentRegistration.builder().status(RegistrationStatus.CANCELLED).build()));
+
+        var summary = service.getOrganizerSummary(organizerId);
+
+        assertThat(summary.total()).isEqualTo(2);
+        assertThat(summary.byStatus().get(TournamentStatus.REGISTRATION_OPEN)).isEqualTo(1L);
+        assertThat(summary.byStatus().get(TournamentStatus.COMPLETED)).isEqualTo(1L);
+        assertThat(summary.seatsHeld()).isEqualTo(1);
+    }
+
+    @Test
     void cancellingReleasesCourtsAndClosesRegistrations() throws ServiceException {
         stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
         TournamentVenueReservation match = TournamentVenueReservation.builder().reservationId(UUID.randomUUID())

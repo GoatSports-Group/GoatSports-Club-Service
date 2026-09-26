@@ -23,6 +23,10 @@ public interface TournamentRepository {
 
     Page<Tournament> findByOrganizerId(UUID organizerId, Pageable pageable);
 
+    /** Giải của một người tổ chức, lọc theo trạng thái hiệu lực (kể cả nháp/hủy), môn, cơ sở và tên. */
+    Page<Tournament> searchOrganized(UUID organizerId, TournamentStatus status, SportType sportType, UUID venueId,
+                                     String keyword, LocalDate today, Pageable pageable);
+
     Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable);
 
     void deleteById(UUID tournamentId);
