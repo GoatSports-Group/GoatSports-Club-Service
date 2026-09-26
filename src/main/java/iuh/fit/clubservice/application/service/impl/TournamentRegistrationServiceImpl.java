@@ -224,18 +224,17 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
     public void cancel(UUID tournamentId, UUID registrationId, UUID actorId, String reason) throws ServiceException {
         Tournament tournament = support.requireTournament(tournamentId);
         TournamentRegistration registration = support.requireRegistration(tournament, registrationId);
-        boolean registrant = registration.getRegisteredBy().equals(actorId);
-        boolean organizer = tournament.getOrganizerId().equals(actorId);
-        if (!registrant && !organizer) throw new ServiceException("Bạn không có quyền hủy đăng ký này.");
+        // Chỉ người đăng ký tự rút. Ban tổ chức không từ chối người tham gia: ai đủ điều kiện và đóng phí thì được dự.
+        if (!registration.getRegisteredBy().equals(actorId)) {
+            throw new ServiceException(tournament.getOrganizerId().equals(actorId)
+                    ? "Ban tổ chức không thể từ chối người tham gia."
+                    : "Bạn không có quyền hủy đăng ký này.");
+        }
         if (!TournamentLifecyclePolicy.holdsSeat(registration.getStatus())) return;
         if (TournamentLifecyclePolicy.isStarted(tournament)) {
             throw new ServiceException("Không thể hủy đăng ký khi giải đấu đã bắt đầu.");
         }
-        String note = normalize(reason);
-        close(tournament, registration,
-                registrant ? RegistrationStatus.CANCELLED : RegistrationStatus.REJECTED,
-                registrant ? "Người đăng ký rút khỏi giải" : "Ban tổ chức từ chối" + (note == null ? "" : ": " + note),
-                actorId);
+        close(tournament, registration, RegistrationStatus.CANCELLED, "Người đăng ký rút khỏi giải", actorId);
     }
 
     @Override

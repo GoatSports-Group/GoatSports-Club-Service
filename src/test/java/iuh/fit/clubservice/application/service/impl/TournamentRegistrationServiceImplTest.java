@@ -414,16 +414,13 @@ class TournamentRegistrationServiceImplTest {
     }
 
     @Test
-    @DisplayName("ban tổ chức từ chối kèm lý do; chưa đóng phí thì không hoàn")
-    void organizerRejectsWithReason() throws ServiceException {
+    @DisplayName("ban tổ chức không từ chối được người tham gia")
+    void organizerCannotRejectRegistration() throws ServiceException {
         var registration = service.register(individual(UUID.randomUUID()));
 
-        service.cancel(tournamentId, registration.getRegistrationId(), organizerId, "Sai hạng cân");
-
-        TournamentRegistration closed = registrations.get(registration.getRegistrationId());
-        assertThat(closed.getStatus()).isEqualTo(RegistrationStatus.REJECTED);
-        assertThat(closed.getStatusReason()).isEqualTo("Ban tổ chức từ chối: Sai hạng cân");
-        verify(feePayment, never()).refund(any(), any(), any(), anyDouble(), anyString());
+        assertThatThrownBy(() -> service.cancel(tournamentId, registration.getRegistrationId(), organizerId, "Sai hạng cân"))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("không thể từ chối");
+        assertThat(registrations.get(registration.getRegistrationId()).getStatus()).isNotEqualTo(RegistrationStatus.REJECTED);
     }
 
     @Test
