@@ -94,6 +94,13 @@ public class TournamentScheduleServiceImpl implements TournamentScheduleService 
                 .orElseThrow(() -> new ServiceException("Không tìm thấy lịch sân của giải này."));
         if (reservation.getStatus() == ReservationStatus.RELEASED
                 || reservation.getStatus() == ReservationStatus.CANCELLED) return;
+        // Lich cua giai da khep lai hoac cua tran da co ket qua la du lieu lich su, khong duoc bo.
+        if (tournament.getStatus() == TournamentStatus.COMPLETED || tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new ServiceException("Giải đấu đã kết thúc, không thể bỏ lịch sân.");
+        }
+        boolean played = fixtureRepository.findByTournamentId(tournamentId).stream()
+                .anyMatch(item -> reservationId.equals(item.getReservationId()) && item.getStatus() == MatchStatus.COMPLETED);
+        if (played) throw new ServiceException("Trận này đã có kết quả, không thể bỏ lịch sân.");
         reservation.setStatus(ReservationStatus.RELEASED);
         reservationRepository.save(reservation);
 
