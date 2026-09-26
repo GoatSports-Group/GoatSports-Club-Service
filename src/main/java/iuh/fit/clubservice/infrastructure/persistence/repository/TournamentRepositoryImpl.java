@@ -47,8 +47,10 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     @Override
     public Page<Tournament> searchTournaments(SportType sportType, TournamentStatus status, String keyword,
                                               LocalDate today, Pageable pageable) {
+        // Trang khám phá chỉ liệt kê giải còn ý nghĩa với người chơi: sắp mở, đang mở, đã đóng đăng ký,
+        // đang diễn ra và đã kết thúc. Bản nháp và giải đã hủy không hiện.
         Specification<TournamentEntity> specification = (root, query, cb) ->
-                cb.notEqual(root.get("status"), TournamentStatus.DRAFT);
+                cb.not(root.get("status").in(TournamentStatus.DRAFT, TournamentStatus.CANCELLED));
 
         if (sportType != null) {
             specification = specification.and((root, query, cb) -> cb.equal(root.get("sportType"), sportType));
