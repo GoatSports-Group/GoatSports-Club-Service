@@ -38,6 +38,7 @@ public interface TournamentRegistrationService {
 
     void expire(UUID registrationId, LocalDateTime now);
 
-    record FeeCheckout(UUID paymentId, String checkoutUrl, String qrCodeContent, Double amount,
+    /** status = SUCCEEDED khi khoản phí đã được trả (khi đó không có mã QR). */
+    record FeeCheckout(UUID paymentId, String status, String checkoutUrl, String qrCodeContent, Double amount,
                        LocalDateTime expiresAt) { }
 }

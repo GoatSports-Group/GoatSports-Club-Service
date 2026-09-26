@@ -11,6 +11,7 @@ import iuh.fit.clubservice.application.port.persistence.TournamentLineupReposito
 import iuh.fit.clubservice.application.port.persistence.TournamentPaymentRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
+import iuh.fit.clubservice.application.service.TournamentPaymentEventService;
 import iuh.fit.clubservice.application.service.TournamentRegistrationService;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubMember;
@@ -27,6 +28,7 @@ import iuh.fit.clubservice.domain.service.ClubAccessPolicy;
 import iuh.fit.clubservice.domain.service.SportParticipationPolicy.PlayFormat;
 import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +55,8 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
     private final TournamentFeePayment feePayment;
+    /** Lazy: TournamentPaymentEventService phụ thuộc ngược lại service này. */
+    private final ObjectProvider<TournamentPaymentEventService> paymentEvents;
 
     // ---------------------------------------------------------------- đăng ký
 
@@ -205,8 +209,12 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
         payment.setPaymentId(checkout.paymentId());
         payment.setStatus(FeePaymentStatus.PENDING);
         paymentRepository.save(payment);
-        return new FeeCheckout(checkout.paymentId(), checkout.checkoutUrl(), checkout.qrCodeContent(), amount,
-                checkout.expiresAt() == null ? deadline : checkout.expiresAt());
+        if ("SUCCEEDED".equals(checkout.status())) {
+            // Tiền đã về nhưng sự kiện thanh toán bị lỡ: xác nhận ngay theo đúng luồng của sự kiện.
+            paymentEvents.getObject().apply(checkout.paymentId(), userId, registrationId, amount, "VND", true, null);
+        }
+        return new FeeCheckout(checkout.paymentId(), checkout.status(), checkout.checkoutUrl(), checkout.qrCodeContent(),
+                amount, checkout.expiresAt() == null ? deadline : checkout.expiresAt());
     }
 
     // ---------------------------------------------------------------- rút / từ chối / hết hạn

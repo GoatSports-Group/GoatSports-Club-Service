@@ -9,7 +9,9 @@ import iuh.fit.clubservice.application.port.external.TournamentFeePayment;
 import iuh.fit.clubservice.application.port.persistence.*;
 import iuh.fit.clubservice.domain.entity.*;
 import iuh.fit.clubservice.domain.enums.*;
+import iuh.fit.clubservice.application.service.TournamentPaymentEventService;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +52,8 @@ class TournamentRegistrationServiceImplTest {
     @Mock private ClubConversationSync conversationSync;
     @Mock private TournamentFeePayment feePayment;
     @Mock private TournamentEventPublisher eventPublisher;
+    @Mock private TournamentPaymentEventService paymentEventService;
+    @Mock private ObjectProvider<TournamentPaymentEventService> paymentEvents;
 
     private TournamentRegistrationServiceImpl service;
     private TournamentTeamServiceImpl teams;
@@ -66,7 +70,8 @@ class TournamentRegistrationServiceImplTest {
                 registrationRepository, lineupRepository, paymentRepository, eligibilityRuleRepository, clubMemberRepository,
                 playerProfileProvider, conversationSync, eventPublisher);
         service = new TournamentRegistrationServiceImpl(support, tournamentRepository, registrationRepository,
-                lineupRepository, paymentRepository, clubRepository, clubMemberRepository, feePayment);
+                lineupRepository, paymentRepository, clubRepository, clubMemberRepository, feePayment, paymentEvents);
+        when(paymentEvents.getObject()).thenReturn(paymentEventService);
         teams = new TournamentTeamServiceImpl(support, tournamentRepository, registrationRepository, lineupRepository,
                 clubRepository);
         useTournament("BADMINTON_SINGLES", 150_000D, 8);
@@ -330,6 +335,22 @@ class TournamentRegistrationServiceImplTest {
     }
 
     // ---------- le phi ----------
+
+    @Test
+    @DisplayName("checkout: payment-service báo đã trả (lỡ sự kiện) thì xác nhận đăng ký ngay")
+    void checkoutConfirmsWhenPaymentAlreadySucceeded() throws ServiceException {
+        UUID player = UUID.randomUUID();
+        var registration = service.register(individual(player));
+        UUID paymentId = UUID.randomUUID();
+        when(feePayment.checkout(any(), any(), anyDouble(), anyString(), any())).thenAnswer(call ->
+                new TournamentFeePayment.Checkout(paymentId, "SUCCEEDED", null, null, call.getArgument(4)));
+
+        var checkout = service.checkout(tournamentId, registration.getRegistrationId(), player);
+
+        assertThat(checkout.status()).isEqualTo("SUCCEEDED");
+        verify(paymentEventService).apply(eq(paymentId), eq(player), eq(registration.getRegistrationId()),
+                eq(150_000D), eq("VND"), eq(true), isNull());
+    }
 
     @Test
     @DisplayName("checkout: số tiền lấy từ giải, hạn là hạn giữ suất, chỉ người đăng ký được trả")
