@@ -157,6 +157,26 @@ public class ClubScoutingServiceImpl implements ClubScoutingService {
                 .toList();
     }
 
+    /** Tối đa số người hỏi một lần: đủ cho danh sách bạn bè, chặn request quá lớn. */
+    static final int MAX_RELATION_LOOKUP = 500;
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, PlayerClubRelation> getRelations(UUID clubId, UUID actorUserId, java.util.Collection<UUID> userIds)
+            throws ServiceException {
+        Club club = requireManagedClub(clubId, actorUserId);
+        if (userIds == null || userIds.isEmpty()) return Map.of();
+        if (userIds.size() > MAX_RELATION_LOOKUP) {
+            throw new ServiceException("Mỗi lần chỉ tra tối đa " + MAX_RELATION_LOOKUP + " người.");
+        }
+        Map<UUID, PlayerClubRelation> relations = relationsOf(club);
+        Map<UUID, PlayerClubRelation> result = new java.util.LinkedHashMap<>();
+        for (UUID userId : userIds) {
+            if (userId != null) result.put(userId, relations.getOrDefault(userId, PlayerClubRelation.NONE));
+        }
+        return result;
+    }
+
     private Club requireManagedClub(UUID clubId, UUID actorUserId) throws ServiceException {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ServiceException("Không tìm thấy câu lạc bộ."));

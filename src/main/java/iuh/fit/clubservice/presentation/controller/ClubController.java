@@ -143,6 +143,19 @@ public class ClubController {
         scoutingService.removeShortlistEntry(clubId, requireUser(), userId);
     }
 
+    /** Tab "Mời bạn bè": trạng thái của từng người bạn với CLB (client lấy danh sách bạn từ social-service). */
+    @PostMapping("/{clubId}/scouting/relations") @ApiMessage("Lấy trạng thái với câu lạc bộ thành công")
+    public java.util.Map<UUID, iuh.fit.clubservice.application.dto.response.PlayerClubRelation> relations(
+            @PathVariable UUID clubId,
+            @Valid @RequestBody RelationLookupRequest request) throws ServiceException {
+        return scoutingService.getRelations(clubId, requireUser(), request.userIds());
+    }
+
+    public record RelationLookupRequest(
+            @jakarta.validation.constraints.NotNull
+            @jakarta.validation.constraints.Size(max = 500, message = "Mỗi lần chỉ tra tối đa 500 người")
+            java.util.List<UUID> userIds) { }
+
     @GetMapping("/{clubId}/invitations") @ApiMessage("Lấy lời mời đã gửi thành công")
     public List<SentInvitationResponseCommand> sentInvitations(@PathVariable UUID clubId) throws ServiceException {
         return scoutingService.getSentInvitations(clubId, requireUser());

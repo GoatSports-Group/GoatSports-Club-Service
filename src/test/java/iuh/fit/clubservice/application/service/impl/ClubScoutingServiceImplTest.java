@@ -337,6 +337,41 @@ class ClubScoutingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Moi ban be: tra quan he cua tung nguoi, khong loc khoang cach hay trinh do")
+    void relationsCoverEveryRequestedFriend() throws Exception {
+        UUID member = UUID.randomUUID(), requested = UUID.randomUUID(), invited = UUID.randomUUID(),
+                banned = UUID.randomUUID(), stranger = UUID.randomUUID();
+        // CLB chua co vi tri van tra duoc: tab nay khong can do khoang cach.
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(null)));
+        when(memberRepository.findByClubId(clubId)).thenReturn(List.of(
+                member(member, ClubMemberStatus.ACTIVE), member(requested, ClubMemberStatus.PENDING),
+                member(banned, ClubMemberStatus.BANNED)));
+        when(invitationRepository.findByClubIdAndStatus(clubId, ClubInvitationStatus.PENDING)).thenReturn(List.of(
+                ClubInvitation.builder().clubId(clubId).inviteeId(invited).status(ClubInvitationStatus.PENDING).build()));
+
+        var relations = service.getRelations(clubId, ownerId, List.of(member, requested, invited, banned, stranger, ownerId));
+
+        assertThat(relations).containsEntry(member, PlayerClubRelation.MEMBER)
+                .containsEntry(requested, PlayerClubRelation.REQUESTED)
+                .containsEntry(invited, PlayerClubRelation.INVITED)
+                .containsEntry(banned, PlayerClubRelation.BANNED)
+                .containsEntry(stranger, PlayerClubRelation.NONE)
+                .containsEntry(ownerId, PlayerClubRelation.MEMBER);
+        verify(playerProfileProvider, org.mockito.Mockito.never()).findScoutingCandidates(any());
+    }
+
+    @Test
+    @DisplayName("Chi chu hoac quan ly CLB moi tra duoc quan he")
+    void relationsAreForManagersOnly() {
+        UUID outsider = UUID.randomUUID();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club("ho-chi-minh")));
+        when(memberRepository.findByClubIdAndUserId(clubId, outsider)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getRelations(clubId, outsider, List.of(UUID.randomUUID())))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("quản lý");
+    }
+
+    @Test
     @DisplayName("Loi moi da nhan tra kem quan he hien tai: nguoi choi da la thanh vien")
     void sentInvitationsCarryTheCurrentRelation() throws Exception {
         UUID invitee = UUID.randomUUID();
