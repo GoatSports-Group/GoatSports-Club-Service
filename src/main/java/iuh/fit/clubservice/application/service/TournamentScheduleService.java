@@ -18,4 +18,11 @@ public interface TournamentScheduleService {
     List<TournamentVenueReservationResponseCommand> getReservations(UUID tournamentId);
 
     void releaseReservation(UUID tournamentId, UUID reservationId, UUID actorUserId) throws ServiceException;
+
+    /**
+     * Doi san/ngay/gio cua mot lich dang hieu luc, giu nguyen lich (va tran gan voi no). Duoc ca khi giai dang dien ra;
+     * khong duoc khi giai da ket thuc/huy, tran da co ket qua, hoac tran dang dien ra.
+     */
+    TournamentVenueReservationResponseCommand rescheduleReservation(UUID reservationId, ReserveTournamentVenueCommand command)
+            throws ServiceException;
 }

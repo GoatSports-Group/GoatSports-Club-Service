@@ -198,6 +198,12 @@ public class TournamentController {
         return scheduleService.reserveVenue(converter.toCommand(tournamentId, requireUser(), request));
     }
 
+    @PutMapping("/{tournamentId}/reservations/{reservationId}") @ApiMessage("Đã xếp lại sân cho trận đấu")
+    public TournamentVenueReservationResponseCommand reschedule(@PathVariable UUID tournamentId, @PathVariable UUID reservationId,
+            @Valid @RequestBody ReserveTournamentVenueRequest request) throws ServiceException {
+        return scheduleService.rescheduleReservation(reservationId, converter.toCommand(tournamentId, requireUser(), request));
+    }
+
     @DeleteMapping("/{tournamentId}/reservations/{reservationId}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void release(@PathVariable UUID tournamentId, @PathVariable UUID reservationId) throws ServiceException {
         scheduleService.releaseReservation(tournamentId, reservationId, requireUser());

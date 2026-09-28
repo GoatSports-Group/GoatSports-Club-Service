@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -123,6 +124,46 @@ public class TournamentScheduleServiceImpl implements TournamentScheduleService 
                     item.setReservationId(null);
                     fixtureRepository.save(item);
                 });
+    }
+
+    @Override
+    @Transactional(rollbackFor = ServiceException.class)
+    public TournamentVenueReservationResponseCommand rescheduleReservation(UUID reservationId,
+                                                                          ReserveTournamentVenueCommand command)
+            throws ServiceException {
+        command.validate();
+        Tournament tournament = requireTournament(command.getTournamentId());
+        TournamentGuards.assertOrganizer(tournament, command.getActorUserId());
+        if (tournament.getStatus() == TournamentStatus.COMPLETED || tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new ServiceException("Giải đấu đã kết thúc hoặc đã hủy, không thể xếp lại sân.");
+        }
+        TournamentVenueReservation reservation = reservationRepository.findById(reservationId)
+                .filter(item -> item.getTournamentId().equals(command.getTournamentId()))
+                .filter(item -> item.getStatus() == ReservationStatus.CONFIRMED || item.getStatus() == ReservationStatus.PENDING)
+                .orElseThrow(() -> new ServiceException("Không tìm thấy lịch sân đang hiệu lực của giải này."));
+        List<TournamentFixture> matches = fixtureRepository.findByTournamentId(command.getTournamentId()).stream()
+                .filter(item -> reservationId.equals(item.getReservationId())).toList();
+        if (matches.stream().anyMatch(item -> item.getStatus() == MatchStatus.COMPLETED)) {
+            throw new ServiceException("Trận này đã có kết quả, không thể xếp lại sân.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        boolean underway = !now.isBefore(LocalDateTime.of(reservation.getPlayDate(), reservation.getStartTime()))
+                && now.isBefore(LocalDateTime.of(reservation.getPlayDate(), reservation.getEndTime()));
+        if (underway || matches.stream().anyMatch(item -> item.getStatus() == MatchStatus.IN_PROGRESS)) {
+            throw new ServiceException("Trận đang diễn ra, không thể xếp lại sân.");
+        }
+        assertWithinHeldCourts(tournament, command);
+        // Khóa các lịch trùng giờ (trừ chính lịch này) rồi mới đổi, tránh hai trận cùng chiếm một khung giờ.
+        boolean clash = reservationRepository.findActiveOverlaps(
+                        command.getCourtId(), command.getPlayDate(), command.getStartTime(), command.getEndTime())
+                .stream().anyMatch(other -> !other.getReservationId().equals(reservationId));
+        if (clash) throw new ServiceException("Khung giờ này đã được xếp cho một trận khác.");
+
+        reservation.setCourtId(command.getCourtId());
+        reservation.setPlayDate(command.getPlayDate());
+        reservation.setStartTime(command.getStartTime());
+        reservation.setEndTime(command.getEndTime());
+        return toResponse(reservationRepository.save(reservation));
     }
 
     /** Sân, ngày và khung giờ phải nằm trong phần giải đã giữ; khung giờ không ngắn hơn một trận. */
