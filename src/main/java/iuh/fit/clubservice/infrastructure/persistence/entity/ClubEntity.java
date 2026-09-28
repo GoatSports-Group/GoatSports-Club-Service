@@ -75,4 +75,6 @@ public class ClubEntity extends BaseEntity {
     private Integer matchCount;
     @Column(name = "win_rate", nullable = false)
     private Double winRate;
+    @Column(name = "elo_rating", nullable = false)
+    private Integer eloRating;
 }

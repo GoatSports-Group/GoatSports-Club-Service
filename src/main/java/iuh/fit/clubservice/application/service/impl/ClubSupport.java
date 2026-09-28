@@ -88,7 +88,7 @@ class ClubSupport {
                 .approvalMode(c.getApprovalMode()).conversationId(c.getConversationId()).active(c.getActive())
                 .disbandedAt(c.getDisbandedAt())
                 .winCount(c.getWinCount()).lossCount(c.getLossCount()).drawCount(c.getDrawCount())
-                .matchCount(c.getMatchCount()).winRate(c.getWinRate())
+                .matchCount(c.getMatchCount()).winRate(c.getWinRate()).eloRating(c.getEloRating())
                 .memberCount(memberRepository.countByClubIdAndStatus(c.getClubId(), ClubMemberStatus.ACTIVE))
                 .tournamentCount(tournamentRegistrationRepository.countDistinctTournamentIdByClubId(c.getClubId()))
                 .createdAt(c.getCreatedAt()).updatedAt(c.getUpdatedAt()).build();

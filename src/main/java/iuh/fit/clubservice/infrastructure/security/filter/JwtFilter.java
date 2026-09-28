@@ -22,8 +22,8 @@ public class JwtFilter extends OncePerRequestFilter {
     @Value("${app.jwt.secret}") private String gatewaySecret;
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri.startsWith("/internal/") || uri.startsWith("/actuator");
+        // `/internal/**` vẫn phải có secret: cổng 7079 mở ra ngoài, mà API nội bộ ghi được ELO của CLB.
+        return request.getRequestURI().startsWith("/actuator");
     }
 
     @Override protected void doFilterInternal(@NonNull HttpServletRequest request,

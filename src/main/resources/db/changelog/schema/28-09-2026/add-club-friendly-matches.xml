@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <changeSet id="20260928-club-elo-friendly-matches" author="codex">
+        <comment>ELO cua CLB (ghep tran CLB dau CLB) va lich su tran giao huu, moi CLB mot dong cho moi phien ghep tran.</comment>
+        <addColumn tableName="clubs">
+            <column name="elo_rating" type="INT" defaultValueNumeric="1200"><constraints nullable="false"/></column>
+        </addColumn>
+        <createTable tableName="club_friendly_matches">
+            <column name="friendly_match_id" type="UUID"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="session_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="club_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="opponent_club_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="opponent_name" type="VARCHAR(150)"><constraints nullable="false"/></column>
+            <column name="sport_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="play_format" type="VARCHAR(40)"/>
+            <column name="club_score" type="INT"><constraints nullable="false"/></column>
+            <column name="opponent_score" type="INT"><constraints nullable="false"/></column>
+            <column name="result" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="elo_before" type="INT"><constraints nullable="false"/></column>
+            <column name="elo_after" type="INT"><constraints nullable="false"/></column>
+            <column name="played_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+        </createTable>
+        <addUniqueConstraint tableName="club_friendly_matches" columnNames="session_id, club_id"
+                             constraintName="uk_club_friendly_match_session_club"/>
+        <createIndex tableName="club_friendly_matches" indexName="idx_club_friendly_matches_club_played">
+            <column name="club_id"/>
+            <column name="played_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

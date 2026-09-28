@@ -12,12 +12,14 @@ import iuh.fit.clubservice.application.port.external.ClubEventPublisher;
 import iuh.fit.clubservice.application.port.external.ClubMediaStorage;
 import iuh.fit.clubservice.application.port.persistence.ClubActivityRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubInvitationRepository;
+import iuh.fit.clubservice.application.port.persistence.ClubFriendlyMatchRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentFixtureRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
 import iuh.fit.clubservice.domain.entity.Club;
+import iuh.fit.clubservice.domain.entity.ClubFriendlyMatch;
 import iuh.fit.clubservice.domain.entity.ClubActivity;
 import iuh.fit.clubservice.domain.entity.ClubInvitation;
 import iuh.fit.clubservice.domain.entity.ClubMember;
@@ -70,6 +72,7 @@ class ClubServiceImplTest {
     @Mock private TournamentRegistrationRepository tournamentRegistrationRepository;
     @Mock private TournamentFixtureRepository tournamentFixtureRepository;
     @Mock private TournamentRepository tournamentRepository;
+    @Mock private ClubFriendlyMatchRepository friendlyMatchRepository;
     @Mock private ClubConversationSync conversationSync;
     @Mock private ClubEventPublisher eventPublisher;
     @Mock private ClubMediaStorage mediaStorage;
@@ -95,7 +98,7 @@ class ClubServiceImplTest {
         invitations = new ClubInvitationServiceImpl(support, clubRepository, memberRepository, invitationRepository,
                 eventPublisher);
         matchService = new ClubMatchServiceImpl(support, tournamentRegistrationRepository, tournamentFixtureRepository,
-                tournamentRepository);
+                tournamentRepository, friendlyMatchRepository);
 
         when(clubRepository.save(any())).thenAnswer(call -> {
             Club club = call.getArgument(0);
@@ -770,6 +773,20 @@ class ClubServiceImplTest {
         var page = matchService.getClubMatchesPage(clubId, null, PageRequest.of(0, 3));
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
+
+        // Trận giao hữu ghép bằng AI cũng vào lịch sử (mới hơn nên đứng đầu), nhưng không thuộc giải nào.
+        when(friendlyMatchRepository.findByClubId(clubId)).thenReturn(List.of(ClubFriendlyMatch.builder()
+                .sessionId(UUID.randomUUID()).clubId(clubId).opponentName("FC Thảo Điền")
+                .clubScore(3).opponentScore(3).result("DRAW").eloBefore(1200).eloAfter(1206)
+                .playedAt(LocalDateTime.now().minusHours(3)).build()));
+
+        var withFriendly = matchService.getClubRecentMatches(clubId, 3);
+        assertThat(withFriendly).extracting("opponentName").containsExactly("FC Thảo Điền", "Weekend FC");
+        assertThat(withFriendly.get(0).isFriendly()).isTrue();
+        assertThat(withFriendly.get(0).getTournamentId()).isNull();
+        assertThat(withFriendly.get(0).getEloChange()).isEqualTo(6);
+        assertThat(matchService.getClubMatchesPage(clubId, tournamentId, PageRequest.of(0, 3)).getContent())
+                .extracting("opponentName").containsExactly("Weekend FC");
     }
 
     @Test

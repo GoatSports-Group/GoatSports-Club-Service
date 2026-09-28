@@ -41,4 +41,5 @@ public class Club extends BaseEntity {
     private Integer drawCount;
     private Integer matchCount;
     private Double winRate;
+    private Integer eloRating;
 }

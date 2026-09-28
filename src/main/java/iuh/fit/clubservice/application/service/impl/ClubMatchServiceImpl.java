@@ -3,10 +3,12 @@ package iuh.fit.clubservice.application.service.impl;
 import iuh.fit.clubservice.application.dto.response.ClubRecentMatchResponseCommand;
 import iuh.fit.clubservice.application.dto.response.ClubTournamentResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
+import iuh.fit.clubservice.application.port.persistence.ClubFriendlyMatchRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentFixtureRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
 import iuh.fit.clubservice.application.service.ClubMatchService;
+import iuh.fit.clubservice.domain.entity.ClubFriendlyMatch;
 import iuh.fit.clubservice.domain.entity.Tournament;
 import iuh.fit.clubservice.domain.entity.TournamentFixture;
 import iuh.fit.clubservice.domain.entity.TournamentRegistration;
@@ -33,10 +35,12 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ClubMatchServiceImpl implements ClubMatchService {
+    static final String FRIENDLY_MATCH_TITLE = "Giao hữu · Ghép trận";
     private final ClubSupport support;
     private final TournamentRegistrationRepository registrationRepository;
     private final TournamentFixtureRepository fixtureRepository;
     private final TournamentRepository tournamentRepository;
+    private final ClubFriendlyMatchRepository friendlyMatchRepository;
 
     @Override
     public List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit) throws ServiceException {
@@ -101,7 +105,8 @@ public class ClubMatchServiceImpl implements ClubMatchService {
     }
 
     /**
-     * Ghép lịch sử trận từ các giải CLB đã tham gia, chỉ lấy trận đã có kết quả, mới nhất trước.
+     * Ghép lịch sử trận từ các giải CLB đã tham gia (chỉ trận đã có kết quả) và các trận giao hữu ghép bằng AI,
+     * mới nhất trước. Lọc theo một giải thì bỏ trận giao hữu.
      * ponytail: phân trang trong bộ nhớ, đủ cho số trận của một CLB; chuyển sang truy vấn SQL nếu lịch sử lên hàng nghìn trận.
      */
     private List<ClubRecentMatchResponseCommand> collectClubMatches(UUID clubId, UUID tournamentId) throws ServiceException {
@@ -113,6 +118,9 @@ public class ClubMatchServiceImpl implements ClubMatchService {
                 if (clubComparison(fixture, clubRegistration.getRegistrationId()) == null) continue;
                 matches.add(toMatch(fixture, clubRegistration.getRegistrationId().equals(fixture.getRegistration1Id())));
             }
+        }
+        if (tournamentId == null) {
+            friendlyMatchRepository.findByClubId(clubId).stream().map(ClubMatchServiceImpl::toMatch).forEach(matches::add);
         }
         return matches.stream()
                 .sorted(Comparator.comparing(ClubRecentMatchResponseCommand::getPlayedAt,
@@ -132,6 +140,20 @@ public class ClubMatchServiceImpl implements ClubMatchService {
             return Integer.compare(fixture.getScore2(), fixture.getScore1());
         }
         return null;
+    }
+
+    private static ClubRecentMatchResponseCommand toMatch(ClubFriendlyMatch match) {
+        return ClubRecentMatchResponseCommand.builder()
+                .matchId(match.getSessionId())
+                .tournamentName(FRIENDLY_MATCH_TITLE)
+                .opponentName(match.getOpponentName())
+                .playedAt(match.getPlayedAt())
+                .clubScore(match.getClubScore())
+                .opponentScore(match.getOpponentScore())
+                .result(match.getResult())
+                .friendly(true)
+                .eloChange(match.getEloAfter() - match.getEloBefore())
+                .build();
     }
 
     private ClubRecentMatchResponseCommand toMatch(TournamentFixture fixture, boolean clubIsFirst) {

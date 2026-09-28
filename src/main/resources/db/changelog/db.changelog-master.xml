@@ -20,4 +20,5 @@
     <include file="/db/changelog/schema/24-09-2026/tournament-venue-teams-payment.xml"/>
     <include file="/db/changelog/schema/26-09-2026/add-tournament-completed-at.xml"/>
     <include file="/db/changelog/schema/28-09-2026/add-fixture-rating-synced.xml"/>
+    <include file="/db/changelog/schema/28-09-2026/add-club-friendly-matches.xml"/>
 </databaseChangeLog>

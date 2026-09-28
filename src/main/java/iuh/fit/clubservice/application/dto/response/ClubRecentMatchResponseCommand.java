@@ -23,4 +23,8 @@ public class ClubRecentMatchResponseCommand {
     private Integer clubScore;
     private Integer opponentScore;
     private String result;
+    /** Trận giao hữu CLB đấu CLB do AI ghép (không thuộc giải nào, tournamentId = null). */
+    private boolean friendly;
+    /** ELO của CLB thay đổi bao nhiêu sau trận giao hữu; null với trận giải đấu. */
+    private Integer eloChange;
 }

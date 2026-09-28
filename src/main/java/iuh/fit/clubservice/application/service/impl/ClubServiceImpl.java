@@ -27,6 +27,7 @@ import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
+import iuh.fit.clubservice.domain.service.ClubEloPolicy;
 import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -93,6 +94,7 @@ public class ClubServiceImpl implements ClubService {
                 .approvalMode(command.getApprovalMode() == null ? ClubApprovalMode.AUTO : command.getApprovalMode())
                 .active(true)
                 .winCount(0).lossCount(0).drawCount(0).matchCount(0).winRate(0D)
+                .eloRating(ClubEloPolicy.INITIAL_RATING)
                 .build());
 
         memberRepository.save(ClubMember.builder()
