@@ -32,6 +32,8 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.MatchStatus;
 import iuh.fit.clubservice.domain.enums.RegistrationStatus;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
+import iuh.fit.clubservice.domain.enums.TournamentFormat;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -765,9 +767,58 @@ class ClubServiceImplTest {
         assertThat(matches.get(0).getResult()).isEqualTo("WIN");
         assertThat(matches.get(0).getPlayedAt()).isEqualTo(playedAt);
 
-        var page = matchService.getClubMatchesPage(clubId, PageRequest.of(0, 3));
+        var page = matchService.getClubMatchesPage(clubId, null, PageRequest.of(0, 3));
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
+    }
+
+    @Test
+    @DisplayName("tab Giải đấu liệt kê mọi giải CLB đã tham gia, kể cả giải chưa đá trận nào; bỏ đăng ký đã hủy")
+    void clubTournamentsListEveryConfirmedParticipation() throws ServiceException {
+        UUID playedId = UUID.randomUUID(), upcomingId = UUID.randomUUID(), withdrawnId = UUID.randomUUID();
+        UUID clubRegistrationId = UUID.randomUUID(), rivalId = UUID.randomUUID(), thirdId = UUID.randomUUID();
+        TournamentRegistration inPlayed = TournamentRegistration.builder().registrationId(clubRegistrationId)
+                .tournamentId(playedId).clubId(clubId).teamName("GOAT FC").status(RegistrationStatus.CONFIRMED).build();
+        TournamentRegistration inUpcoming = TournamentRegistration.builder().registrationId(UUID.randomUUID())
+                .tournamentId(upcomingId).clubId(clubId).teamName("GOAT FC").status(RegistrationStatus.CONFIRMED).build();
+        TournamentRegistration withdrawn = TournamentRegistration.builder().registrationId(UUID.randomUUID())
+                .tournamentId(withdrawnId).clubId(clubId).status(RegistrationStatus.CANCELLED).build();
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
+        when(tournamentRegistrationRepository.findByClubId(clubId)).thenReturn(List.of(inPlayed, inUpcoming, withdrawn));
+        when(tournamentRepository.findById(playedId)).thenReturn(Optional.of(Tournament.builder().tournamentId(playedId)
+                .name("Shuttle League").format(TournamentFormat.ROUND_ROBIN).status(TournamentStatus.COMPLETED)
+                .startDate(LocalDate.now().minusDays(30)).endDate(LocalDate.now().minusDays(20)).build()));
+        when(tournamentRepository.findById(upcomingId)).thenReturn(Optional.of(Tournament.builder().tournamentId(upcomingId)
+                .name("Autumn Cup").format(TournamentFormat.SINGLE_ELIMINATION).status(TournamentStatus.PUBLISHED)
+                .startDate(LocalDate.now().plusDays(10)).endDate(LocalDate.now().plusDays(11))
+                .registrationOpenDate(LocalDate.now().minusDays(5)).registrationCloseDate(LocalDate.now().plusDays(5)).build()));
+        when(tournamentRegistrationRepository.findByTournamentIdAndStatus(playedId, RegistrationStatus.CONFIRMED))
+                .thenReturn(List.of(inPlayed, TournamentRegistration.builder().registrationId(rivalId).build(),
+                        TournamentRegistration.builder().registrationId(thirdId).build()));
+        when(tournamentRegistrationRepository.findByTournamentIdAndStatus(upcomingId, RegistrationStatus.CONFIRMED))
+                .thenReturn(List.of(inUpcoming));
+        when(tournamentFixtureRepository.findByTournamentId(playedId)).thenReturn(List.of(
+                TournamentFixture.builder().tournamentId(playedId).registration1Id(clubRegistrationId).registration2Id(rivalId)
+                        .score1(21).score2(15).status(MatchStatus.COMPLETED).build(),
+                TournamentFixture.builder().tournamentId(playedId).registration1Id(thirdId).registration2Id(clubRegistrationId)
+                        .score1(18).score2(18).status(MatchStatus.COMPLETED).build(),
+                TournamentFixture.builder().tournamentId(playedId).registration1Id(rivalId).registration2Id(thirdId)
+                        .score1(21).score2(10).status(MatchStatus.COMPLETED).build()));
+        when(tournamentFixtureRepository.findByTournamentId(upcomingId)).thenReturn(List.of());
+
+        var tournaments = matchService.getClubTournaments(clubId);
+
+        assertThat(tournaments).extracting("name").containsExactly("Autumn Cup", "Shuttle League");
+        var played = tournaments.get(1);
+        assertThat(played.getPlayed()).isEqualTo(2);
+        assertThat(played.getWon()).isEqualTo(1);
+        assertThat(played.getDrawn()).isEqualTo(1);
+        assertThat(played.getLost()).isZero();
+        assertThat(played.getTeamCount()).isEqualTo(3);
+        assertThat(played.getRank()).isEqualTo(1);
+        assertThat(played.isChampion()).isTrue();
+        assertThat(tournaments.get(0).getPlayed()).isZero();
+        assertThat(tournaments.get(0).getRank()).isNull();
     }
 
     private Club disbandedClub() {

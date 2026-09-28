@@ -9,7 +9,10 @@ import iuh.fit.clubservice.application.port.persistence.TournamentFixtureReposit
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
 import iuh.fit.clubservice.application.service.TournamentFixtureService;
+import iuh.fit.clubservice.application.service.TournamentRatingService;
 import iuh.fit.clubservice.application.service.TournamentRegistrationService;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import iuh.fit.clubservice.domain.entity.Tournament;
 import iuh.fit.clubservice.domain.entity.TournamentFixture;
 import iuh.fit.clubservice.domain.entity.TournamentRegistration;
@@ -42,6 +45,7 @@ public class TournamentFixtureServiceImpl implements TournamentFixtureService {
     private final TournamentFixtureRepository fixtureRepository;
     private final ClubRepository clubRepository;
     private final TournamentRegistrationService registrationService;
+    private final TournamentRatingService ratingService;
 
     @Override
     @Transactional(rollbackFor = ServiceException.class)
@@ -123,7 +127,28 @@ public class TournamentFixtureServiceImpl implements TournamentFixtureService {
         }
         if (wasCompleted) applyClubRecords(fixture, previousScore1, previousScore2, -1);
         applyClubRecords(fixture, fixture.getScore1(), fixture.getScore2(), 1);
-        return toResponse(fixtureRepository.save(fixture));
+        fixture.setRatingSynced(false);
+        TournamentFixture saved = fixtureRepository.save(fixture);
+        rateAfterCommit(saved.getFixtureId());
+        return toResponse(saved);
+    }
+
+    /** ELO tính sau khi tỉ số đã lưu chắc chắn; lỗi thì cờ ratingSynced=false để job thử lại. */
+    private void rateAfterCommit(UUID fixtureId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            ratingService.syncFixture(fixtureId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    ratingService.syncFixture(fixtureId);
+                } catch (RuntimeException exception) {
+                    // Tỉ số đã lưu; job TournamentRatingJob sẽ tính lại.
+                }
+            }
+        });
     }
 
     @Override

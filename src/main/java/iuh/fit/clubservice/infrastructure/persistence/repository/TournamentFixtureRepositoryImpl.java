@@ -42,6 +42,17 @@ public class TournamentFixtureRepositoryImpl implements TournamentFixtureReposit
     }
 
     @Override
+    public List<TournamentFixture> findRatingPending(int limit) {
+        return jpaTournamentFixtureRepository.findByRatingSyncedFalse(org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream().map(tournamentFixtureEntityMapper::toDomain).toList();
+    }
+
+    @Override
+    public boolean markRatingSynced(UUID fixtureId, Integer score1, Integer score2) {
+        return jpaTournamentFixtureRepository.markRatingSynced(fixtureId, score1, score2) > 0;
+    }
+
+    @Override
     public void deleteByTournamentId(UUID tournamentId) {
         jpaTournamentFixtureRepository.deleteByTournamentId(tournamentId);
     }

@@ -84,6 +84,7 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
         }
         UUID me = command.getRegisteredBy();
         support.assertFreeToPlay(me, active, null, "Bạn");
+        support.ensureProfile(tournament, me);
         support.assertEligible(tournament, me, command.getClubId(), "");
 
         return type == RegistrationType.INDIVIDUAL

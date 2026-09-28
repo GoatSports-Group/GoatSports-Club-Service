@@ -4,6 +4,7 @@ import iuh.fit.clubservice.application.dto.response.TournamentRegistrationRespon
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
+import iuh.fit.clubservice.application.port.external.SportRatingPort;
 import iuh.fit.clubservice.application.port.external.TournamentEventPublisher;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentEligibilityRuleRepository;
@@ -52,6 +53,7 @@ import java.util.UUID;
  * ({@link TournamentTeamServiceImpl}): tra cứu có khóa, các điều kiện chặn, chuyển trạng thái khi đủ điều kiện,
  * phát sự kiện và dựng response. Không mở transaction riêng — luôn chạy trong transaction của use case gọi nó.
  */
+@lombok.extern.slf4j.Slf4j
 @Component
 @RequiredArgsConstructor
 class TournamentRegistrationSupport {
@@ -66,6 +68,7 @@ class TournamentRegistrationSupport {
     private final PlayerProfileProvider playerProfileProvider;
     private final ClubConversationSync conversationSync;
     private final TournamentEventPublisher eventPublisher;
+    private final SportRatingPort sportRatingPort;
 
     // ---------------------------------------------------------------- tra cứu
 
@@ -134,6 +137,19 @@ class TournamentRegistrationSupport {
             if (registrant || member) {
                 throw new ServiceException(who + " đã tham gia giải này trong một đăng ký khác.");
             }
+        }
+    }
+
+    /**
+     * Người chơi chọn một giải môn chưa có hồ sơ: tạo hồ sơ ở trình độ thấp nhất để có ELO cho các trận của giải
+     * (và để luật điều kiện ELO/trình độ xét trên hồ sơ đó). Không chặn đăng ký nếu auth-service lỗi: lần tính ELO
+     * đầu tiên sẽ tự tạo hồ sơ.
+     */
+    void ensureProfile(Tournament tournament, UUID userId) {
+        try {
+            sportRatingPort.ensureProfile(userId, tournament.getSportType());
+        } catch (ServiceException | RuntimeException exception) {
+            log.warn("Chưa tạo được hồ sơ {} cho {}: {}", tournament.getSportType(), userId, exception.getMessage());
         }
     }
 

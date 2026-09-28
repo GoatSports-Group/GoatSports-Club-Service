@@ -25,7 +25,8 @@ public interface JpaTournamentRegistrationRepository extends JpaRepository<Tourn
     long countByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status);
 
     @Query("select count(distinct registration.tournamentId) from TournamentRegistrationEntity registration "
-            + "where registration.clubId = :clubId")
+            + "where registration.clubId = :clubId "
+            + "and registration.status = iuh.fit.clubservice.domain.enums.RegistrationStatus.CONFIRMED")
     long countDistinctTournamentIdByClubId(@Param("clubId") UUID clubId);
 
     List<TournamentRegistrationEntity> findByStatusAndPaymentDeadlineBefore(

@@ -57,6 +57,7 @@ class TournamentRegistrationServiceImplTest {
 
     private TournamentRegistrationServiceImpl service;
     private TournamentTeamServiceImpl teams;
+    @Mock private iuh.fit.clubservice.application.port.external.SportRatingPort sportRatingPort;
     private final UUID tournamentId = UUID.randomUUID();
     private final UUID organizerId = UUID.randomUUID();
     private final Map<UUID, TournamentRegistration> registrations = new LinkedHashMap<>();
@@ -68,7 +69,7 @@ class TournamentRegistrationServiceImplTest {
     void setUp() {
         TournamentRegistrationSupport support = new TournamentRegistrationSupport(tournamentRepository,
                 registrationRepository, lineupRepository, paymentRepository, eligibilityRuleRepository, clubMemberRepository,
-                playerProfileProvider, conversationSync, eventPublisher);
+                playerProfileProvider, conversationSync, eventPublisher, sportRatingPort);
         service = new TournamentRegistrationServiceImpl(support, tournamentRepository, registrationRepository,
                 lineupRepository, paymentRepository, clubRepository, clubMemberRepository, feePayment, paymentEvents);
         when(paymentEvents.getObject()).thenReturn(paymentEventService);
@@ -242,6 +243,22 @@ class TournamentRegistrationServiceImplTest {
         assertThat(accepted.getStatus()).isEqualTo(RegistrationStatus.PENDING_PAYMENT);
         assertThat(accepted.getPaymentDeadline()).isNotNull();
         assertThat(teams.getMyInvitations(partner)).isEmpty();
+        // Ai thi đấu cũng có hồ sơ môn của giải (chưa có thì tạo ở trình độ thấp nhất) để tính ELO.
+        verify(sportRatingPort).ensureProfile(captain, tournament.getSportType());
+        verify(sportRatingPort).ensureProfile(partner, tournament.getSportType());
+    }
+
+    @Test
+    @DisplayName("auth-service lỗi khi tạo hồ sơ thể thao không chặn đăng ký giải")
+    void profileServiceOutageDoesNotBlockRegistration() throws ServiceException {
+        useTournament("BADMINTON_SINGLES", 0D, 8);
+        UUID player = UUID.randomUUID();
+        org.mockito.Mockito.doThrow(new ServiceException("down")).when(sportRatingPort).ensureProfile(any(), any());
+
+        var response = service.register(individual(player));
+
+        assertThat(response.getStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
+        verify(sportRatingPort).ensureProfile(player, tournament.getSportType());
     }
 
     @Test

@@ -15,6 +15,7 @@ public interface TournamentEventPublisher {
     String PAYMENT_DUE = "tournament.registration.payment-due.v1";
     String CONFIRMED = "tournament.registration.confirmed.v1";
     String CLOSED = "tournament.registration.closed.v1";
+    String MATCH_RATED = "tournament.match.rated.v1";
 
     void publish(String eventType, Tournament tournament, UUID receiverId, UUID actorId, Map<String, String> payload);
 }

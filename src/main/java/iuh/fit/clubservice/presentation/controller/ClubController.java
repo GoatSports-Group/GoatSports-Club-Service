@@ -209,8 +209,15 @@ public class ClubController {
 
     @GetMapping("/{clubId}/matches/page") @ApiMessage("Lấy lịch sử thi đấu phân trang thành công")
     public Page<ClubRecentMatchResponseCommand> matchesPage(@PathVariable UUID clubId,
+            @RequestParam(required = false) UUID tournamentId,
             @PageableDefault(size = 3) Pageable pageable) throws ServiceException {
-        return matchService.getClubMatchesPage(clubId, pageable);
+        return matchService.getClubMatchesPage(clubId, tournamentId, pageable);
+    }
+
+    @GetMapping("/{clubId}/tournaments") @ApiMessage("Lấy các giải câu lạc bộ đã tham gia thành công")
+    public List<iuh.fit.clubservice.application.dto.response.ClubTournamentResponseCommand> tournaments(
+            @PathVariable UUID clubId) throws ServiceException {
+        return matchService.getClubTournaments(clubId);
     }
 
     @PostMapping("/{clubId}/activities") @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo hoạt động thành công")

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <changeSet id="20260928-fixture-rating-synced" author="codex">
+        <comment>Tran co ti so moi/sua ma chua tinh ELO ben auth-service (false) thi job thu lai. Tran cu: khong tinh nguoc (true).</comment>
+        <addColumn tableName="tournament_fixtures">
+            <column name="rating_synced" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </addColumn>
+        <createIndex tableName="tournament_fixtures" indexName="idx_tournament_fixtures_rating_pending">
+            <column name="rating_synced"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

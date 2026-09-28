@@ -98,6 +98,7 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
                 throw new ServiceException("Bạn không còn là thành viên của câu lạc bộ đại diện đội này.");
             }
         }
+        support.ensureProfile(tournament, userId);
         support.assertEligible(tournament, userId, registration.getClubId(), "");
 
         answer(mine, LineupMemberStatus.ACCEPTED);

@@ -25,4 +25,7 @@ public class TournamentFixture extends BaseEntity {
     private UUID nextFixtureId;
     private UUID reservationId;
     private MatchStatus status;
+    /** false: tỉ số mới/sửa chưa được tính ELO bên auth-service (job sẽ thử lại). */
+    @lombok.Builder.Default
+    private Boolean ratingSynced = Boolean.TRUE;
 }

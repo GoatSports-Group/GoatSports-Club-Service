@@ -55,6 +55,7 @@ class TournamentServiceImplTest {
     @Mock private TournamentRegistrationService registrationService;
     @Mock private iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository lineupRepository;
     @Mock private iuh.fit.clubservice.application.port.external.PlayerProfileProvider playerProfileProvider;
+    @Mock private iuh.fit.clubservice.application.service.TournamentRatingService ratingService;
 
     private TournamentServiceImpl service;
     private TournamentFixtureServiceImpl fixtureService;
@@ -72,7 +73,7 @@ class TournamentServiceImplTest {
                 eligibilityRuleRepository, reservationRepository, venueCourtHold, registrationService,
                 lineupRepository, playerProfileProvider);
         fixtureService = new TournamentFixtureServiceImpl(tournamentRepository, registrationRepository, fixtureRepository,
-                clubRepository, registrationService);
+                clubRepository, registrationService, ratingService);
         schedule = new TournamentScheduleServiceImpl(tournamentRepository, fixtureRepository, reservationRepository);
 
         when(eligibilityRuleRepository.findByTournamentId(any())).thenReturn(List.of());
@@ -659,6 +660,9 @@ class TournamentServiceImplTest {
                 .fixtureId(semiFinal.getFixtureId()).actorUserId(organizerId).score1(3).score2(1).build());
 
         assertThat(finalMatch.getRegistration1Id()).isEqualTo(winner);
+        // Tỉ số mới chờ tính ELO, và được tính ngay (ngoài transaction thì gọi trực tiếp).
+        assertThat(semiFinal.getRatingSynced()).isFalse();
+        verify(ratingService).syncFixture(semiFinal.getFixtureId());
     }
 
     @Test
