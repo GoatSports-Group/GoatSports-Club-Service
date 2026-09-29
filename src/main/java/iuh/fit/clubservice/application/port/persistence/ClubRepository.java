@@ -16,4 +16,8 @@ public interface ClubRepository {
     Page<Club> searchClubs(SportType sportType, String city, String keyword, Pageable pageable);
 
     void deleteById(UUID clubId);
+
+    long countActive();
+
+    long countDisbanded();
 }

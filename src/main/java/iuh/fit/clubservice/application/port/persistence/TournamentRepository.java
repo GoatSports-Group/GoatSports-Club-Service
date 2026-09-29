@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.application.port.persistence;
 
+import java.util.List;
 import iuh.fit.clubservice.domain.entity.Tournament;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
 import iuh.fit.clubservice.domain.enums.SportType;
@@ -30,4 +31,7 @@ public interface TournamentRepository {
     Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable);
 
     void deleteById(UUID tournamentId);
+
+    /** Mọi giải (kể cả nháp, đã hủy): cho thống kê toàn nền tảng. */
+    List<Tournament> findAll();
 }

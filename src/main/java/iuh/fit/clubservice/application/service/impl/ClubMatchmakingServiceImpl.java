@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +46,9 @@ public class ClubMatchmakingServiceImpl implements ClubMatchmakingService {
                     .map(ClubMember::getUserId).forEach(managers::add);
             return new Profile(club.getClubId(), club.getName(), club.getLogoUrl(), club.getSportType(),
                     rating(club), List.copyOf(managers), active.size(), orZero(club.getMatchCount()),
-                    club.getWinRate() == null ? 0D : club.getWinRate());
+                    club.getWinRate() == null ? 0D : club.getWinRate(),
+                    Stream.concat(Stream.of(club.getOwnerId()), active.stream().map(ClubMember::getUserId))
+                            .distinct().toList());
         });
     }
 

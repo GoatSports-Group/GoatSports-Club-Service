@@ -117,4 +117,9 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     public void deleteById(UUID tournamentId) {
         jpaTournamentRepository.deleteById(tournamentId);
     }
+
+    @Override
+    public List<Tournament> findAll() {
+        return jpaTournamentRepository.findAll().stream().map(tournamentEntityMapper::toDomain).toList();
+    }
 }

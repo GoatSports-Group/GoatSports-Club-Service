@@ -11,7 +11,10 @@ import java.util.UUID;
 /** Phần của club-service trong ghép trận CLB đấu CLB (ai-service gọi nội bộ). */
 public interface ClubMatchmakingService {
 
-    /** Hồ sơ để ghép trận; rỗng nếu CLB không tồn tại hoặc đã giải tán. */
+    /**
+     * Hồ sơ để ghép trận; rỗng nếu CLB không tồn tại hoặc đã giải tán. {@code memberIds} là thành viên đang hoạt động,
+     * để ai-service kiểm tra đồng đội chọn từ CLB (ghép đôi / đội không đại diện CLB).
+     */
     Optional<Profile> getProfile(UUID clubId);
 
     /**
@@ -23,7 +26,8 @@ public interface ClubMatchmakingService {
     Map<UUID, Integer> applyFriendlyResult(FriendlyResult command) throws ServiceException;
 
     record Profile(UUID clubId, String name, String logoUrl, SportType sportType, int eloRating,
-                   List<UUID> managerIds, long activeMemberCount, int matchCount, double winRate) { }
+                   List<UUID> managerIds, long activeMemberCount, int matchCount, double winRate,
+                   List<UUID> memberIds) { }
 
     record Side(UUID clubId, int score) { }
 

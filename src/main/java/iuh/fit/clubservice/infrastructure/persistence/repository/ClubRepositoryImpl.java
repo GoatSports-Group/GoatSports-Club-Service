@@ -62,4 +62,14 @@ public class ClubRepositoryImpl implements ClubRepository {
     public void deleteById(UUID clubId) {
         jpaClubRepository.deleteById(clubId);
     }
+
+    @Override
+    public long countActive() {
+        return jpaClubRepository.countByActiveTrueAndDisbandedAtIsNull();
+    }
+
+    @Override
+    public long countDisbanded() {
+        return jpaClubRepository.countByDisbandedAtIsNotNull();
+    }
 }

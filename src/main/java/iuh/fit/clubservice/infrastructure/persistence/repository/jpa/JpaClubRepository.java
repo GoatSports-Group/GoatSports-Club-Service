@@ -9,4 +9,8 @@ import java.util.UUID;
 
 @Repository
 public interface JpaClubRepository extends JpaRepository<ClubEntity, UUID>, JpaSpecificationExecutor<ClubEntity> {
+
+    long countByActiveTrueAndDisbandedAtIsNull();
+
+    long countByDisbandedAtIsNotNull();
 }
