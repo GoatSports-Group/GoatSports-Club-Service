@@ -66,7 +66,7 @@ public class TournamentController {
         if ("ORGANIZING".equalsIgnoreCase(role)) {
             return tournamentService.getOrganizedTournaments(requireUser(), status, sportType, venueId, keyword, pageable);
         }
-        return tournamentService.getMyTournaments(requireUser(), false, pageable);
+        return tournamentService.getParticipatingTournaments(requireUser(), status, sportType, keyword, pageable);
     }
 
     @GetMapping("/me/summary")

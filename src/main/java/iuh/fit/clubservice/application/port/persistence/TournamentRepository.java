@@ -28,7 +28,9 @@ public interface TournamentRepository {
     Page<Tournament> searchOrganized(UUID organizerId, TournamentStatus status, SportType sportType, UUID venueId,
                                      String keyword, LocalDate today, Pageable pageable);
 
-    Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable);
+    /** Giai trong `tournamentIds` (giai nguoi choi tham gia), cung bo loc voi trang kham pha; null = khong loc. */
+    Page<Tournament> searchParticipating(Collection<UUID> tournamentIds, TournamentStatus status, SportType sportType,
+                                         String keyword, LocalDate today, Pageable pageable);
 
     void deleteById(UUID tournamentId);
 

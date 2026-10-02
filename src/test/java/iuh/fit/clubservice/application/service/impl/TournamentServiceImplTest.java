@@ -752,4 +752,20 @@ class TournamentServiceImplTest {
         assertThat(secondClub.getWinCount()).isEqualTo(1);
         assertThat(secondClub.getWinRate()).isEqualTo(1D);
     }
+
+    @Test
+    @DisplayName("toi tham gia: loc theo trang thai, mon, ten trong cac giai minh dang ky (ten da cat khoang trang)")
+    void participatingTournamentsPassFiltersToTheRepository() {
+        UUID player = UUID.randomUUID();
+        UUID joinedId = UUID.randomUUID();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 12);
+        when(registrationRepository.findTournamentIdsByParticipant(eq(player), any())).thenReturn(List.of(joinedId));
+        when(tournamentRepository.searchParticipating(any(), any(), any(), any(), any(), any()))
+                .thenReturn(org.springframework.data.domain.Page.empty(pageable));
+
+        service.getParticipatingTournaments(player, TournamentStatus.IN_PROGRESS, SportType.BADMINTON, "  cầu lông ", pageable);
+
+        verify(tournamentRepository).searchParticipating(eq(List.of(joinedId)), eq(TournamentStatus.IN_PROGRESS),
+                eq(SportType.BADMINTON), eq("cầu lông"), eq(LocalDate.now()), eq(pageable));
+    }
 }

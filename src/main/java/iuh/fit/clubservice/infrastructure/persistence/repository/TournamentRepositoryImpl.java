@@ -52,6 +52,14 @@ public class TournamentRepositoryImpl implements TournamentRepository {
         Specification<TournamentEntity> specification = (root, query, cb) ->
                 cb.not(root.get("status").in(TournamentStatus.DRAFT, TournamentStatus.CANCELLED));
 
+        specification = specification.and(playerFilters(status, sportType, keyword, today));
+        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+    }
+
+    /** Bo loc cua nguoi choi (trang thai hieu luc, mon, ten) dung chung cho Kham pha va Toi tham gia. */
+    private Specification<TournamentEntity> playerFilters(TournamentStatus status, SportType sportType, String keyword,
+                                                          LocalDate today) {
+        Specification<TournamentEntity> specification = (root, query, cb) -> cb.conjunction();
         if (sportType != null) {
             specification = specification.and((root, query, cb) -> cb.equal(root.get("sportType"), sportType));
         }
@@ -62,7 +70,7 @@ public class TournamentRepositoryImpl implements TournamentRepository {
             String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
             specification = specification.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern));
         }
-        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+        return specification;
     }
 
     /** Cùng luật với TournamentLifecyclePolicy.effectiveStatus, dịch sang SQL để phân trang đúng. */
@@ -105,11 +113,14 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     }
 
     @Override
-    public Page<Tournament> findByIds(Collection<UUID> tournamentIds, Pageable pageable) {
+    public Page<Tournament> searchParticipating(Collection<UUID> tournamentIds, TournamentStatus status,
+                                                SportType sportType, String keyword, LocalDate today, Pageable pageable) {
         if (tournamentIds.isEmpty()) return Page.empty(pageable);
+        // Toi tham gia van hien giai da huy (de thay tinh trang hoan phi), chi bo ban nhap.
         Specification<TournamentEntity> specification = (root, query, cb) -> cb.and(
                 root.get("tournamentId").in(tournamentIds),
                 cb.notEqual(root.get("status"), TournamentStatus.DRAFT));
+        specification = specification.and(playerFilters(status, sportType, keyword, today));
         return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
     }
 

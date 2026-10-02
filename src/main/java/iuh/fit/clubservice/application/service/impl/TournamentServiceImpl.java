@@ -53,14 +53,16 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
-    public Page<TournamentResponseCommand> getMyTournaments(UUID userId, boolean organizing, Pageable pageable) {
-        if (organizing) return tournamentRepository.findByOrganizerId(userId, pageable).map(this::toResponse);
+    public Page<TournamentResponseCommand> getParticipatingTournaments(UUID userId, TournamentStatus status,
+                                                                       SportType sportType, String keyword,
+                                                                       Pageable pageable) {
         // Đăng ký bị từ chối / đã hủy vẫn hiện để người chơi thấy lý do và tình trạng hoàn phí.
         List<UUID> ids = registrationRepository.findTournamentIdsByParticipant(userId, List.of(
                 RegistrationStatus.PENDING_MEMBERS, RegistrationStatus.PENDING_ELIGIBILITY,
                 RegistrationStatus.PENDING_PAYMENT, RegistrationStatus.CONFIRMED, RegistrationStatus.REJECTED,
                 RegistrationStatus.CANCELLED));
-        return tournamentRepository.findByIds(ids, pageable).map(this::toResponse);
+        return tournamentRepository.searchParticipating(ids, status, sportType, normalize(keyword), LocalDate.now(), pageable)
+                .map(this::toResponse);
     }
 
     @Override

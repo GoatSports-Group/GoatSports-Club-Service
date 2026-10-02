@@ -25,7 +25,9 @@ import java.util.UUID;
 public interface TournamentService {
     Page<TournamentResponseCommand> searchTournaments(SportType sportType, TournamentStatus status, String keyword, Pageable pageable);
 
-    Page<TournamentResponseCommand> getMyTournaments(UUID userId, boolean organizing, Pageable pageable);
+    /** Giai nguoi choi tham gia (ke ca dang ky bi tu choi / da huy), loc nhu trang kham pha. */
+    Page<TournamentResponseCommand> getParticipatingTournaments(UUID userId, TournamentStatus status, SportType sportType,
+                                                                String keyword, Pageable pageable);
 
     /** Danh sách giải của chủ sân có bộ lọc (trang quản lý giải). */
     Page<TournamentResponseCommand> getOrganizedTournaments(UUID userId, TournamentStatus status, SportType sportType,
