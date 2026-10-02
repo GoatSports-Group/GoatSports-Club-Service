@@ -300,6 +300,20 @@ public class ClubServiceImpl implements ClubService {
         support.syncConversation(club);
     }
 
+    @Override
+    public void unbanMember(UUID clubId, UUID membershipId, UUID actorUserId) throws ServiceException {
+        Club club = support.requireActiveClub(clubId);
+        support.assertManager(club, actorUserId);
+        ClubMember member = requireMember(clubId, membershipId);
+        if (member.getStatus() != ClubMemberStatus.BANNED) {
+            throw new ServiceException("Người chơi này không bị cấm.");
+        }
+        member.setStatus(ClubMemberStatus.REMOVED);
+        member.setRespondedBy(actorUserId);
+        member.setRespondedAt(LocalDateTime.now());
+        memberRepository.save(member);
+    }
+
     // ---------------------------------------------------------------- sở hữu / giải tán
 
     /**

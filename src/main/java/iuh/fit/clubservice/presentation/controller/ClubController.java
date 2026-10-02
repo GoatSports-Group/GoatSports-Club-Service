@@ -273,6 +273,12 @@ public class ClubController {
         clubService.removeMember(clubId, membershipId, ban, requireUser());
     }
 
+    @PostMapping("/{clubId}/members/{membershipId}/unban") @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiMessage("Đã gỡ cấm người chơi")
+    public void unbanMember(@PathVariable UUID clubId, @PathVariable UUID membershipId) throws ServiceException {
+        clubService.unbanMember(clubId, membershipId, requireUser());
+    }
+
     @PutMapping("/{clubId}/activities/{activityId}") @ApiMessage("Cập nhật hoạt động thành công")
     public ClubActivityResponseCommand updateActivity(@PathVariable UUID clubId, @PathVariable UUID activityId,
             @Valid @RequestBody UpdateClubActivityRequest request) throws ServiceException {

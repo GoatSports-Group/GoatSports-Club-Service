@@ -53,6 +53,9 @@ public interface ClubService {
 
     void removeMember(UUID clubId, UUID membershipId, boolean ban, UUID actorUserId) throws ServiceException;
 
+    /** Go cam: BANNED -> REMOVED, nguoi choi lai xin vao hoac duoc moi nhu binh thuong. Chi ban quan tri. */
+    void unbanMember(UUID clubId, UUID membershipId, UUID actorUserId) throws ServiceException;
+
     ClubMemberResponseCommand transferOwnership(UUID clubId, UUID membershipId, UUID actorUserId)
             throws ServiceException;
 

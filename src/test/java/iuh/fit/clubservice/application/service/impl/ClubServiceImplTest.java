@@ -337,6 +337,36 @@ class ClubServiceImplTest {
     }
 
     @Test
+    @DisplayName("go cam chuyen BANNED ve REMOVED, khong tu dua lai vao CLB hay chat nhom")
+    void unbanMovesBannedToRemoved() throws ServiceException {
+        ClubMember member = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        member.setStatus(ClubMemberStatus.BANNED);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(member));
+
+        service.unbanMember(clubId, membershipId, ownerId);
+
+        assertThat(member.getStatus()).isEqualTo(ClubMemberStatus.REMOVED);
+        assertThat(member.getRespondedBy()).isEqualTo(ownerId);
+        verify(conversationSync, never()).sync(any(), any());
+    }
+
+    @Test
+    @DisplayName("go cam nguoi khong bi cam thi bao loi, chi ban quan tri duoc go")
+    void unbanRejectsNonBannedAndNonManagers() {
+        ClubMember active = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> service.unbanMember(clubId, membershipId, ownerId))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("không bị cấm");
+        active.setStatus(ClubMemberStatus.BANNED);
+        assertThatThrownBy(() -> service.unbanMember(clubId, membershipId, UUID.randomUUID()))
+                .isInstanceOf(ServiceException.class);
+        assertThat(active.getStatus()).isEqualTo(ClubMemberStatus.BANNED);
+    }
+
+    @Test
     @DisplayName("xoa thanh vien khong cam thi trang thai la REMOVED")
     void removingWithoutBanMarksRemoved() throws ServiceException {
         ClubMember member = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
