@@ -26,5 +26,11 @@ public interface ClubMemberRepository {
 
     long countByClubIdAndStatus(UUID clubId, ClubMemberStatus status);
 
+    /** So thanh vien ACTIVE theo CLB (CLB khong co ai thi vang mat khoi map). */
+    java.util.Map<UUID, Long> countActiveByClubIds(java.util.Collection<UUID> clubIds);
+
+    /** So thanh vien ACTIVE vao CLB tu thoi diem `since`. */
+    java.util.Map<UUID, Long> countJoinedSinceByClubIds(java.util.Collection<UUID> clubIds, java.time.LocalDateTime since);
+
     void deleteById(UUID membershipId);
 }

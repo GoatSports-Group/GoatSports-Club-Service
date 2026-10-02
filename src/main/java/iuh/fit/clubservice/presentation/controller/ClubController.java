@@ -10,6 +10,7 @@ import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.dto.response.ScoutedPlayerResponseCommand;
 import iuh.fit.clubservice.application.service.ClubScoutingService;
 import iuh.fit.clubservice.application.service.ClubService;
+import iuh.fit.clubservice.application.service.ClubFeaturedService;
 import iuh.fit.clubservice.application.service.ClubActivityService;
 import iuh.fit.clubservice.application.service.ClubInvitationService;
 import iuh.fit.clubservice.application.service.ClubMatchService;
@@ -40,6 +41,7 @@ public class ClubController {
     private final ClubInvitationService invitationService;
     private final ClubMatchService matchService;
     private final ClubScoutingService scoutingService;
+    private final ClubFeaturedService featuredService;
     private final ClubConverter converter;
     private final CurrentUserProvider currentUserProvider;
 
@@ -48,6 +50,16 @@ public class ClubController {
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String keyword, Pageable pageable) {
         return clubService.searchClubs(sportType, city, keyword, pageable);
+    }
+
+    @GetMapping("/featured") @ApiMessage("Lấy câu lạc bộ nổi bật thành công")
+    public Page<FeaturedClubResponseCommand> featured(@RequestParam(required = false) List<SportType> sport,
+            @RequestParam(required = false) List<String> city,
+            @RequestParam(required = false) SportType filterSport,
+            @RequestParam(required = false) String filterCity,
+            @PageableDefault(size = 12) Pageable pageable) {
+        return featuredService.getFeatured(currentUserProvider.getCurrentUserId().orElse(null), sport, city,
+                filterSport, filterCity, PageRequest.of(pageable.getPageNumber(), Math.min(Math.max(pageable.getPageSize(), 1), 50)));
     }
 
     @GetMapping("/me") @ApiMessage("Lấy câu lạc bộ của bạn thành công")

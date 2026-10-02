@@ -66,4 +66,23 @@ public class ClubMemberRepositoryImpl implements ClubMemberRepository {
     public void deleteById(UUID membershipId) {
         jpaClubMemberRepository.deleteById(membershipId);
     }
+
+    @Override
+    public java.util.Map<UUID, Long> countActiveByClubIds(java.util.Collection<UUID> clubIds) {
+        if (clubIds.isEmpty()) return java.util.Map.of();
+        return toCountMap(jpaClubMemberRepository.countByClubIdsAndStatus(clubIds, ClubMemberStatus.ACTIVE));
+    }
+
+    @Override
+    public java.util.Map<UUID, Long> countJoinedSinceByClubIds(java.util.Collection<UUID> clubIds, java.time.LocalDateTime since) {
+        if (clubIds.isEmpty()) return java.util.Map.of();
+        return toCountMap(jpaClubMemberRepository.countJoinedSince(clubIds, ClubMemberStatus.ACTIVE, since));
+    }
+
+    /** Hang (clubId, count) cua cac truy van group-by thanh map. */
+    private static java.util.Map<UUID, Long> toCountMap(List<Object[]> rows) {
+        java.util.Map<UUID, Long> counts = new java.util.HashMap<>();
+        for (Object[] row : rows) counts.put((UUID) row[0], ((Number) row[1]).longValue());
+        return counts;
+    }
 }

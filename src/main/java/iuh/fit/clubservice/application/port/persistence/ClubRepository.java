@@ -17,6 +17,9 @@ public interface ClubRepository {
 
     void deleteById(UUID clubId);
 
+    /** Ung vien "CLB noi bat": dang hoat dong, chua giai tan, cong khai. */
+    java.util.List<Club> findFeaturedCandidates();
+
     long countActive();
 
     long countDisbanded();

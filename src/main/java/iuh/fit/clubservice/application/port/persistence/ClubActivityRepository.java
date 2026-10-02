@@ -21,5 +21,9 @@ public interface ClubActivityRepository {
 
     Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from, Pageable pageable);
 
+    /** So buoi sinh hoat co startAt trong [from, to] theo CLB. */
+    java.util.Map<UUID, Long> countByClubIdsBetween(java.util.Collection<UUID> clubIds,
+            java.time.LocalDateTime from, java.time.LocalDateTime to);
+
     void deleteById(UUID activityId);
 }

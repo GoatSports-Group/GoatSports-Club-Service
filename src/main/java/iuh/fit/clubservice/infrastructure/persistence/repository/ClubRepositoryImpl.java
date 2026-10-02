@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.persistence.repository;
 
+import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.enums.SportType;
@@ -71,5 +72,12 @@ public class ClubRepositoryImpl implements ClubRepository {
     @Override
     public long countDisbanded() {
         return jpaClubRepository.countByDisbandedAtIsNotNull();
+    }
+
+    @Override
+    public java.util.List<Club> findFeaturedCandidates() {
+        return jpaClubRepository.findByActiveTrueAndDisbandedAtIsNullAndPrivacy(ClubPrivacy.PUBLIC).stream()
+                .map(clubEntityMapper::toDomain)
+                .toList();
     }
 }
