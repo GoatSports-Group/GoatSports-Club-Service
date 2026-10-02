@@ -179,9 +179,7 @@ public class TournamentTeamServiceImpl implements TournamentTeamService {
         if (!TournamentLifecyclePolicy.holdsSeat(registration.getStatus())) {
             throw new ServiceException("Đội này không còn tham gia giải.");
         }
-        if (TournamentLifecyclePolicy.isStarted(tournament)) {
-            throw new ServiceException("Giải đã bắt đầu nên không đổi đội hình được.");
-        }
+        support.assertRegistrationOpen(tournament, "Giải đã đóng đăng ký nên không đổi đội hình được.");
 
         List<TournamentLineup> lineup = lineupRepository.findByRegistrationId(registrationId);
         TournamentLineup target = lineup.stream()

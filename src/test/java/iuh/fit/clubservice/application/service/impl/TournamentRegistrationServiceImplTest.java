@@ -351,6 +351,24 @@ class TournamentRegistrationServiceImplTest {
                 .isInstanceOf(ServiceException.class).hasMessageContaining("rút đăng ký");
     }
 
+    @Test
+    @DisplayName("đóng đăng ký rồi thì không bỏ thành viên, không rời đội, không rút đội được")
+    void rosterIsFrozenOnceRegistrationCloses() throws ServiceException {
+        useTournament("BADMINTON_DOUBLES", 0D, 8);
+        UUID captain = UUID.randomUUID();
+        UUID partner = UUID.randomUUID();
+        var created = service.register(team(captain, "Đôi E", partner));
+        teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
+        tournament.setRegistrationCloseDate(LocalDate.now().minusDays(1));
+
+        assertThatThrownBy(() -> teams.removeMember(tournamentId, created.getRegistrationId(), captain, partner))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đóng đăng ký");
+        assertThatThrownBy(() -> teams.removeMember(tournamentId, created.getRegistrationId(), partner, partner))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đóng đăng ký");
+        assertThatThrownBy(() -> service.cancel(tournamentId, created.getRegistrationId(), captain, null))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("đóng đăng ký");
+    }
+
     // ---------- le phi ----------
 
     @Test

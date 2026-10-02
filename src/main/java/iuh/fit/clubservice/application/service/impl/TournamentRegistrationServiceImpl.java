@@ -232,9 +232,7 @@ public class TournamentRegistrationServiceImpl implements TournamentRegistration
                     : "Bạn không có quyền hủy đăng ký này.");
         }
         if (!TournamentLifecyclePolicy.holdsSeat(registration.getStatus())) return;
-        if (TournamentLifecyclePolicy.isStarted(tournament)) {
-            throw new ServiceException("Không thể hủy đăng ký khi giải đấu đã bắt đầu.");
-        }
+        support.assertRegistrationOpen(tournament, "Giải đã đóng đăng ký nên không rút khỏi giải được.");
         close(tournament, registration, RegistrationStatus.CANCELLED, "Người đăng ký rút khỏi giải", actorId);
     }
 
