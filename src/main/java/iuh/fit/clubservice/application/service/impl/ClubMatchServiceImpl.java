@@ -1,5 +1,13 @@
 package iuh.fit.clubservice.application.service.impl;
 
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.time.format.DateTimeFormatter;
+import iuh.fit.clubservice.domain.enums.LineupMemberStatus;
+import iuh.fit.clubservice.domain.entity.TournamentLineup;
+import iuh.fit.clubservice.domain.entity.Club;
+import iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository;
+import iuh.fit.clubservice.application.port.external.CommunityHighlightPublisher;
 import iuh.fit.clubservice.application.dto.response.ClubRecentMatchResponseCommand;
 import iuh.fit.clubservice.application.dto.response.ClubTournamentResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
@@ -41,6 +49,8 @@ public class ClubMatchServiceImpl implements ClubMatchService {
     private final TournamentFixtureRepository fixtureRepository;
     private final TournamentRepository tournamentRepository;
     private final ClubFriendlyMatchRepository friendlyMatchRepository;
+    private final TournamentLineupRepository lineupRepository;
+    private final CommunityHighlightPublisher highlightPublisher;
 
     @Override
     public List<ClubRecentMatchResponseCommand> getClubRecentMatches(UUID clubId, int limit) throws ServiceException {
@@ -55,6 +65,52 @@ public class ClubMatchServiceImpl implements ClubMatchService {
         int start = Math.toIntExact(Math.min(pageable.getOffset(), matches.size()));
         int end = Math.min(start + pageable.getPageSize(), matches.size());
         return new PageImpl<>(matches.subList(start, end), pageable, matches.size());
+    }
+
+    @Override
+    public UUID shareTournament(UUID clubId, UUID tournamentId, UUID actorId, String title, String content)
+            throws ServiceException {
+        Club club = support.requireActiveClub(clubId);
+        if (!support.isManager(club, actorId)) {
+            throw new ServiceException("Chỉ chủ CLB hoặc quản trị viên mới được khoe thành tích giải đấu.");
+        }
+        if (title == null || title.isBlank()) throw new ServiceException("Tiêu đề không được để trống.");
+        ClubTournamentResponseCommand summary = getClubTournaments(clubId).stream()
+                .filter(item -> item.getTournamentId().equals(tournamentId)).findFirst()
+                .orElseThrow(() -> new ServiceException("Câu lạc bộ chưa tham gia giải này."));
+        // Doi da ra san duoc gan the truoc, roi den cac thanh vien con lai (social-service cat o 50 nguoi).
+        Set<UUID> tagged = new LinkedHashSet<>();
+        lineupRepository.findByRegistrationId(summary.getRegistrationId()).stream()
+                .filter(row -> row.getMemberStatus() == null || row.getMemberStatus() == LineupMemberStatus.ACCEPTED)
+                .map(TournamentLineup::getPlayerId).filter(Objects::nonNull).forEach(tagged::add);
+        tagged.addAll(support.activeMemberIds(clubId));
+        tagged.remove(actorId);
+
+        DateTimeFormatter day = DateTimeFormatter.ofPattern("dd/MM");
+        DateTimeFormatter fullDay = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String team = summary.getTeamName() == null || summary.getTeamName().isBlank() ? club.getName() : summary.getTeamName();
+        String subtitle = summary.getStartDate() == null || summary.getEndDate() == null ? team
+                : team + " · " + summary.getStartDate().format(day) + " – " + summary.getEndDate().format(fullDay);
+        List<CommunityHighlightPublisher.Stat> stats = new ArrayList<>();
+        stats.add(new CommunityHighlightPublisher.Stat("Số đội", String.valueOf(summary.getTeamCount())));
+        if (summary.getPlayed() > 0) {
+            stats.add(new CommunityHighlightPublisher.Stat("Trận", String.valueOf(summary.getPlayed())));
+            stats.add(new CommunityHighlightPublisher.Stat("Thắng", String.valueOf(summary.getWon())));
+            stats.add(new CommunityHighlightPublisher.Stat("Hòa", String.valueOf(summary.getDrawn())));
+            stats.add(new CommunityHighlightPublisher.Stat("Thua", String.valueOf(summary.getLost())));
+        }
+        return highlightPublisher.publishTournament(new CommunityHighlightPublisher.TournamentHighlight(actorId,
+                summary.getSportType(), content, tournamentId, title.strip(), summary.getName(), subtitle,
+                tournamentResult(summary), stats, clubId, club.getName(), List.copyOf(tagged)));
+    }
+
+    /** Mot dong ket qua cua doi CLB o giai: vo dich, hang (vong tron), hoac trang thai giai. */
+    static String tournamentResult(ClubTournamentResponseCommand summary) {
+        if (summary.isChampion()) return "Vô địch";
+        if (summary.getRank() != null) return "Hạng " + summary.getRank() + "/" + summary.getTeamCount();
+        if (summary.getStatus() == TournamentStatus.COMPLETED) return "Hoàn thành giải";
+        if (summary.getStatus() == TournamentStatus.IN_PROGRESS) return "Đang thi đấu";
+        return "Đã ghi danh tham dự";
     }
 
     /**

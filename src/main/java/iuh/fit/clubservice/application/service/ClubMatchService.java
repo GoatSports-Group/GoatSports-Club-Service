@@ -17,4 +17,11 @@ public interface ClubMatchService {
             throws ServiceException;
 
     List<ClubTournamentResponseCommand> getClubTournaments(UUID clubId) throws ServiceException;
+
+    /**
+     * Chu CLB hoac quan tri vien khoe thanh tich cua CLB o mot giai len Cong dong, gan the doi da thi dau
+     * va cac thanh vien. Tra ve id bai viet.
+     */
+    UUID shareTournament(UUID clubId, UUID tournamentId, UUID actorId, String title, String content)
+            throws ServiceException;
 }

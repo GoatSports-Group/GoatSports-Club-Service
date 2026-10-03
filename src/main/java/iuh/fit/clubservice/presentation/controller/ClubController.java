@@ -245,6 +245,15 @@ public class ClubController {
         return matchService.getClubTournaments(clubId);
     }
 
+    @PostMapping("/{clubId}/tournaments/{tournamentId}/share") @ResponseStatus(HttpStatus.CREATED)
+    @ApiMessage("Đã đăng thành tích lên Cộng đồng")
+    public java.util.Map<String, UUID> shareTournament(@PathVariable UUID clubId, @PathVariable UUID tournamentId,
+            @Valid @RequestBody iuh.fit.clubservice.presentation.request.ShareHighlightRequest request)
+            throws ServiceException {
+        return java.util.Map.of("postId",
+                matchService.shareTournament(clubId, tournamentId, requireUser(), request.title(), request.content()));
+    }
+
     @PostMapping("/{clubId}/activities") @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo hoạt động thành công")
     public ClubActivityResponseCommand createActivity(@PathVariable UUID clubId,
             @Valid @RequestBody CreateClubActivityRequest request) throws ServiceException {

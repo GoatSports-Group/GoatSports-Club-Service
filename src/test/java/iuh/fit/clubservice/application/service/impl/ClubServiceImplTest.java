@@ -98,7 +98,7 @@ class ClubServiceImplTest {
         invitations = new ClubInvitationServiceImpl(support, clubRepository, memberRepository, invitationRepository,
                 eventPublisher);
         matchService = new ClubMatchServiceImpl(support, tournamentRegistrationRepository, tournamentFixtureRepository,
-                tournamentRepository, friendlyMatchRepository);
+                tournamentRepository, friendlyMatchRepository, null, null);
 
         when(clubRepository.save(any())).thenAnswer(call -> {
             Club club = call.getArgument(0);
