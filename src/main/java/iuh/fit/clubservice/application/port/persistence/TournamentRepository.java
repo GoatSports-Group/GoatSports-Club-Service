@@ -34,6 +34,10 @@ public interface TournamentRepository {
 
     void deleteById(UUID tournamentId);
 
+    /** Mọi giải trừ bản nháp, lọc theo trạng thái hiển thị như trang người chơi (admin). */
+    Page<Tournament> searchForAdmin(TournamentStatus status, SportType sportType, String keyword, LocalDate today,
+                                    Pageable pageable);
+
     /** Mọi giải (kể cả nháp, đã hủy): cho thống kê toàn nền tảng. */
     List<Tournament> findAll();
 }

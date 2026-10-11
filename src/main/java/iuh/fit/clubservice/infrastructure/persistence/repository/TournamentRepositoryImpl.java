@@ -88,6 +88,16 @@ public class TournamentRepositoryImpl implements TournamentRepository {
     }
 
     @Override
+    public Page<Tournament> searchForAdmin(TournamentStatus status, SportType sportType, String keyword, LocalDate today,
+                                           Pageable pageable) {
+        // Admin thấy cả giải đã hủy (khác trang khám phá); bản nháp vẫn là riêng của ban tổ chức.
+        Specification<TournamentEntity> specification = (root, query, cb) ->
+                cb.notEqual(root.get("status"), TournamentStatus.DRAFT);
+        specification = specification.and(playerFilters(status, sportType, keyword, today));
+        return jpaTournamentRepository.findAll(specification, pageable).map(tournamentEntityMapper::toDomain);
+    }
+
+    @Override
     public Page<Tournament> searchOrganized(UUID organizerId, TournamentStatus status, SportType sportType, UUID venueId,
                                             String keyword, LocalDate today, Pageable pageable) {
         Specification<TournamentEntity> specification = (root, query, cb) -> cb.equal(root.get("organizerId"), organizerId);

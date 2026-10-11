@@ -4,7 +4,9 @@ import iuh.fit.clubservice.domain.entity.TournamentRegistration;
 import iuh.fit.clubservice.domain.enums.RegistrationStatus;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,4 +34,8 @@ public interface TournamentRegistrationRepository {
     List<UUID> findTournamentIdsByParticipant(UUID userId, List<RegistrationStatus> statuses);
 
     void deleteById(UUID registrationId);
+
+    /** Số đăng ký đang giữ suất của nhiều giải trong một truy vấn (gộp theo giải). */
+    Map<UUID, Long> countByTournamentIdsAndStatuses(Collection<UUID> tournamentIds,
+                                                             Collection<RegistrationStatus> statuses);
 }

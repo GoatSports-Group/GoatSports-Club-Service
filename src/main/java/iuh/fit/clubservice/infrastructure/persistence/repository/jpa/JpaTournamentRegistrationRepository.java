@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,14 @@ public interface JpaTournamentRegistrationRepository extends JpaRepository<Tourn
     Optional<TournamentRegistrationEntity> findByTournamentIdAndPlayerId(UUID tournamentId, UUID playerId);
 
     long countByTournamentIdAndStatus(UUID tournamentId, RegistrationStatus status);
+
+    @Query("""
+            select registration.tournamentId, count(registration) from TournamentRegistrationEntity registration
+            where registration.tournamentId in :tournamentIds and registration.status in :statuses
+            group by registration.tournamentId
+            """)
+    List<Object[]> countGroupedByTournament(@Param("tournamentIds") Collection<UUID> tournamentIds,
+                                            @Param("statuses") Collection<RegistrationStatus> statuses);
 
     @Query("select count(distinct registration.tournamentId) from TournamentRegistrationEntity registration "
             + "where registration.clubId = :clubId "

@@ -1,8 +1,10 @@
 package iuh.fit.clubservice.infrastructure.persistence.repository;
 
-import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
+import iuh.fit.clubservice.application.service.AdminCommunityService;
 import iuh.fit.clubservice.domain.entity.Club;
+import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
+import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.infrastructure.persistence.entity.ClubEntity;
 import iuh.fit.clubservice.infrastructure.persistence.mapper.ClubEntityMapper;
@@ -13,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,6 +70,15 @@ public class ClubRepositoryImpl implements ClubRepository {
     @Override
     public long countActive() {
         return jpaClubRepository.countByActiveTrueAndDisbandedAtIsNull();
+    }
+
+    @Override
+    public Page<AdminCommunityService.ClubRow> searchForAdmin(boolean includeActive, boolean includeDisbanded,
+                                                              Collection<SportType> sportTypes, String keyword,
+                                                              Pageable pageable) {
+        String pattern = "%" + (keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT)) + "%";
+        return jpaClubRepository.searchForAdmin(includeActive, includeDisbanded, sportTypes, pattern,
+                ClubMemberStatus.ACTIVE, pageable);
     }
 
     @Override

@@ -8,7 +8,9 @@ import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTourname
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,6 +20,14 @@ import java.util.stream.Collectors;
 public class TournamentRegistrationRepositoryImpl implements TournamentRegistrationRepository {
     private final JpaTournamentRegistrationRepository jpaTournamentRegistrationRepository;
     private final TournamentRegistrationEntityMapper tournamentRegistrationEntityMapper;
+
+    @Override
+    public Map<UUID, Long> countByTournamentIdsAndStatuses(Collection<UUID> tournamentIds,
+                                                          Collection<RegistrationStatus> statuses) {
+        if (tournamentIds.isEmpty()) return Map.of();
+        return jpaTournamentRegistrationRepository.countGroupedByTournament(tournamentIds, statuses).stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+    }
 
     @Override
     public TournamentRegistration save(TournamentRegistration registration) {
