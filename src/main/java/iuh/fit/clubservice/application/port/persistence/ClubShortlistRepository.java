@@ -16,4 +16,7 @@ public interface ClubShortlistRepository {
     long countByClubId(UUID clubId);
 
     void delete(ClubShortlistEntry entry);
+
+    /** Gỡ người dùng khỏi danh sách theo dõi của mọi CLB. */
+    void deleteByUserId(UUID userId);
 }

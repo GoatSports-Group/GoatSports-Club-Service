@@ -41,4 +41,9 @@ public class ClubShortlistRepositoryImpl implements ClubShortlistRepository {
     public void delete(ClubShortlistEntry entry) {
         jpaRepository.deleteById(entry.getEntryId());
     }
+
+    @Override
+    public void deleteByUserId(UUID userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
 }

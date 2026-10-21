@@ -15,4 +15,7 @@ public interface JpaClubShortlistRepository extends JpaRepository<ClubShortlistE
     Optional<ClubShortlistEntryEntity> findByClubIdAndUserId(UUID clubId, UUID userId);
 
     long countByClubId(UUID clubId);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByUserId(UUID userId);
 }
