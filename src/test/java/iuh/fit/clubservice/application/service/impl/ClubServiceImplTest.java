@@ -419,6 +419,67 @@ class ClubServiceImplTest {
         verify(conversationSync, never()).sync(any(), any());
     }
 
+    // ---------- Phuong an B (21/10): quan ly khong tu xu ly quan ly ngang cap ----------
+
+    private UUID activeAdmin() {
+        UUID adminUser = UUID.randomUUID();
+        when(memberRepository.findByClubIdAndUserId(clubId, adminUser)).thenReturn(Optional.of(
+                memberWithRole(UUID.randomUUID(), adminUser, ClubRole.ADMIN)));
+        return adminUser;
+    }
+
+    @Test
+    @DisplayName("quan ly khong xoa, khong cam duoc quan ly khac; chu CLB thi duoc")
+    void onlyTheOwnerRemovesOrBansAnotherAdmin() throws ServiceException {
+        ClubMember otherAdmin = memberWithRole(membershipId, memberUserId, ClubRole.ADMIN);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(otherAdmin));
+        UUID adminUser = activeAdmin();
+
+        assertThatThrownBy(() -> service.removeMember(clubId, membershipId, true, adminUser))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("Chỉ chủ câu lạc bộ");
+        assertThatThrownBy(() -> service.removeMember(clubId, membershipId, false, adminUser))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("Chỉ chủ câu lạc bộ");
+        assertThat(otherAdmin.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
+        verify(memberRepository, never()).save(any());
+
+        service.removeMember(clubId, membershipId, true, ownerId);
+        assertThat(otherAdmin.getStatus()).isEqualTo(ClubMemberStatus.BANNED);
+    }
+
+    @Test
+    @DisplayName("quan ly van xoa/cam duoc thanh vien thuong")
+    void adminStillDisciplinesPlainMembers() throws ServiceException {
+        ClubMember member = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(member));
+        UUID adminUser = activeAdmin();
+
+        service.removeMember(clubId, membershipId, true, adminUser);
+
+        assertThat(member.getStatus()).isEqualTo(ClubMemberStatus.BANNED);
+        assertThat(member.getRespondedBy()).isEqualTo(adminUser);
+    }
+
+    @Test
+    @DisplayName("lenh cam cua chu CLB chi chu CLB go; lenh cam cua quan ly thi quan ly go duoc")
+    void onlyTheOwnerLiftsTheOwnersBan() throws ServiceException {
+        ClubMember banned = memberWithRole(membershipId, memberUserId, ClubRole.MEMBER);
+        banned.setStatus(ClubMemberStatus.BANNED);
+        banned.setRespondedBy(ownerId);
+        when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
+        when(memberRepository.findById(membershipId)).thenReturn(Optional.of(banned));
+        UUID adminUser = activeAdmin();
+
+        assertThatThrownBy(() -> service.unbanMember(clubId, membershipId, adminUser))
+                .isInstanceOf(ServiceException.class).hasMessageContaining("do chủ câu lạc bộ đặt");
+        assertThat(banned.getStatus()).isEqualTo(ClubMemberStatus.BANNED);
+
+        banned.setRespondedBy(UUID.randomUUID()); // cam boi mot quan ly
+        service.unbanMember(clubId, membershipId, adminUser);
+        assertThat(banned.getStatus()).isEqualTo(ClubMemberStatus.REMOVED);
+    }
+
     // ---------- CLUB-01/02: cap nhat CLB va hoat dong ----------
 
     @Test

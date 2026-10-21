@@ -27,6 +27,7 @@ import iuh.fit.clubservice.domain.enums.ClubPrivacy;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
+import iuh.fit.clubservice.domain.service.ClubAccessPolicy;
 import iuh.fit.clubservice.domain.service.ClubEloPolicy;
 import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
 import lombok.RequiredArgsConstructor;
@@ -291,6 +292,9 @@ public class ClubServiceImpl implements ClubService {
         if (member.getUserId().equals(actorUserId)) {
             throw new ServiceException("Bạn hãy dùng chức năng rời câu lạc bộ cho chính mình.");
         }
+        if (!ClubAccessPolicy.canDiscipline(club, member, actorUserId)) {
+            throw new ServiceException("Chỉ chủ câu lạc bộ mới xóa hoặc cấm được quản lý khác.");
+        }
         ClubMemberStatus target = ban ? ClubMemberStatus.BANNED : ClubMemberStatus.REMOVED;
         if (member.getStatus() == target) return;
         member.setStatus(target);
@@ -307,6 +311,9 @@ public class ClubServiceImpl implements ClubService {
         ClubMember member = requireMember(clubId, membershipId);
         if (member.getStatus() != ClubMemberStatus.BANNED) {
             throw new ServiceException("Người chơi này không bị cấm.");
+        }
+        if (!ClubAccessPolicy.canLiftBan(club, member, actorUserId)) {
+            throw new ServiceException("Lệnh cấm này do chủ câu lạc bộ đặt, chỉ chủ câu lạc bộ mới gỡ được.");
         }
         member.setStatus(ClubMemberStatus.REMOVED);
         member.setRespondedBy(actorUserId);
