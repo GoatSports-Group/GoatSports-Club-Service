@@ -7,6 +7,7 @@ import iuh.fit.clubservice.application.port.security.CurrentUserProvider;
 import iuh.fit.clubservice.application.service.ClubPhotoService;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.request.AddClubPhotosRequest;
+import iuh.fit.shared.annotation.AuditLog;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -46,6 +47,7 @@ public class ClubPhotoController {
 
     @DeleteMapping("/{photoId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "DELETE_CLUB_PHOTO", description = "Xóa ảnh #{#photoId} của câu lạc bộ #{#clubId}")
     public void deletePhoto(@PathVariable UUID clubId, @PathVariable UUID photoId) throws ServiceException {
         UUID actorUserId = currentUserProvider.getCurrentUserId()
                 .orElseThrow(() -> new UnauthenticatedException("Bạn cần đăng nhập để xóa ảnh câu lạc bộ."));

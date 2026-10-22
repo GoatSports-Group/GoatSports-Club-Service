@@ -17,6 +17,7 @@ import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.TournamentConverter;
 import iuh.fit.clubservice.presentation.request.*;
+import iuh.fit.shared.annotation.AuditLog;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -94,18 +95,21 @@ public class TournamentController {
     }
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
+    @AuditLog(action = "CREATE_TOURNAMENT", description = "Tạo giải đấu")
     public TournamentResponseCommand create(@Valid @RequestBody CreateTournamentRequest request) throws ServiceException {
         return tournamentService.createTournament(converter.toCommand(requireUser(), request));
     }
 
     @PutMapping("/{tournamentId}")
     @ApiMessage("Cập nhật giải đấu thành công")
+    @AuditLog(action = "UPDATE_TOURNAMENT", description = "Cập nhật giải đấu #{#tournamentId}")
     public TournamentResponseCommand update(@PathVariable UUID tournamentId,
             @Valid @RequestBody CreateTournamentRequest request) throws ServiceException {
         return tournamentService.updateTournament(tournamentId, converter.toCommand(requireUser(), request));
     }
 
     @PostMapping("/{tournamentId}/register")
+    @AuditLog(action = "REGISTER_TOURNAMENT", description = "Đăng ký đội vào giải đấu #{#tournamentId}")
     public TournamentRegistrationResponseCommand register(@PathVariable UUID tournamentId,
             @Valid @RequestBody RegisterTournamentTeamRequest request) throws ServiceException {
         return registrationService.register(converter.toCommand(tournamentId, requireUser(), request));
@@ -145,6 +149,7 @@ public class TournamentController {
 
     @DeleteMapping("/{tournamentId}/registrations/{registrationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "CANCEL_TOURNAMENT_REGISTRATION", description = "Hủy đăng ký #{#registrationId} của giải đấu #{#tournamentId}")
     public void cancel(@PathVariable UUID tournamentId, @PathVariable UUID registrationId,
             @RequestParam(required = false) @Size(max = 300) String reason)
             throws ServiceException {
@@ -157,6 +162,7 @@ public class TournamentController {
     }
 
     @PostMapping("/{tournamentId}/generate-fixtures")
+    @AuditLog(action = "GENERATE_TOURNAMENT_FIXTURES", description = "Tạo lịch thi đấu giải #{#tournamentId}")
     public List<TournamentFixtureResponseCommand> generate(@PathVariable UUID tournamentId) throws ServiceException {
         return fixtureService.generateFixtures(tournamentId, requireUser());
     }
@@ -166,6 +172,7 @@ public class TournamentController {
     }
 
     @PutMapping("/{tournamentId}/fixtures/{fixtureId}/result")
+    @AuditLog(action = "RECORD_TOURNAMENT_RESULT", description = "Ghi tỷ số #{#request.score1}-#{#request.score2} cho trận #{#fixtureId} giải #{#tournamentId}")
     public TournamentFixtureResponseCommand result(@PathVariable UUID tournamentId, @PathVariable UUID fixtureId,
             @Valid @RequestBody UpdateFixtureResultRequest request) throws ServiceException {
         return fixtureService.updateFixtureResult(converter.toCommand(fixtureId, requireUser(), request));
@@ -176,6 +183,7 @@ public class TournamentController {
     }
 
     @PatchMapping("/{tournamentId}/status") @ApiMessage("Cập nhật trạng thái giải đấu thành công")
+    @AuditLog(action = "CHANGE_TOURNAMENT_STATUS", description = "Đổi trạng thái giải đấu #{#tournamentId} sang #{#request.status}")
     public TournamentResponseCommand changeStatus(@PathVariable UUID tournamentId,
             @Valid @RequestBody ChangeTournamentStatusRequest request) throws ServiceException {
         return tournamentService.changeStatus(tournamentId, request.getStatus(), requireUser());
@@ -193,6 +201,7 @@ public class TournamentController {
 
     @PostMapping("/{tournamentId}/reservations") @ResponseStatus(HttpStatus.CREATED)
     @ApiMessage("Đã xếp sân cho trận đấu")
+    @AuditLog(action = "RESERVE_TOURNAMENT_COURT", description = "Giữ sân cho giải đấu #{#tournamentId}")
     public TournamentVenueReservationResponseCommand reserve(@PathVariable UUID tournamentId,
             @Valid @RequestBody ReserveTournamentVenueRequest request) throws ServiceException {
         return scheduleService.reserveVenue(converter.toCommand(tournamentId, requireUser(), request));
@@ -205,6 +214,7 @@ public class TournamentController {
     }
 
     @DeleteMapping("/{tournamentId}/reservations/{reservationId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "RELEASE_TOURNAMENT_COURT", description = "Trả sân #{#reservationId} của giải đấu #{#tournamentId}")
     public void release(@PathVariable UUID tournamentId, @PathVariable UUID reservationId) throws ServiceException {
         scheduleService.releaseReservation(tournamentId, reservationId, requireUser());
     }

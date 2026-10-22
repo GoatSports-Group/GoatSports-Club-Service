@@ -23,6 +23,7 @@ import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.ClubConverter;
 import iuh.fit.clubservice.presentation.request.*;
+import iuh.fit.shared.annotation.AuditLog;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -108,6 +109,7 @@ public class ClubController {
     }
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @ApiMessage("Tạo câu lạc bộ thành công")
+    @AuditLog(action = "CREATE_CLUB", description = "Tạo câu lạc bộ")
     public ClubResponseCommand create(@Valid @RequestBody CreateClubRequest request) throws ServiceException {
         return clubService.createClub(converter.toCommand(requireUser(), request));
     }
@@ -119,6 +121,7 @@ public class ClubController {
     }
 
     @PutMapping("/{clubId}/members/{membershipId}/respond") @ApiMessage("Xử lý yêu cầu tham gia thành công")
+    @AuditLog(action = "RESPOND_CLUB_JOIN_REQUEST", description = "Xử lý yêu cầu tham gia #{#membershipId} của câu lạc bộ #{#clubId}")
     public ClubMemberResponseCommand respond(@PathVariable UUID clubId, @PathVariable UUID membershipId,
             @Valid @RequestBody RespondClubMemberRequest request) throws ServiceException {
         return clubService.respondMembership(converter.toCommand(membershipId, requireUser(), request));
@@ -181,12 +184,14 @@ public class ClubController {
     }
 
     @PatchMapping("/{clubId}/owner") @ApiMessage("Chuyển quyền sở hữu câu lạc bộ thành công")
+    @AuditLog(action = "TRANSFER_CLUB_OWNERSHIP", description = "Chuyển quyền sở hữu câu lạc bộ #{#clubId}")
     public ClubMemberResponseCommand transferOwnership(@PathVariable UUID clubId,
                                                        @RequestParam UUID membershipId) throws ServiceException {
         return clubService.transferOwnership(clubId, membershipId, requireUser());
     }
 
     @PostMapping("/{clubId}/disband") @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "DISBAND_CLUB", description = "Giải tán câu lạc bộ #{#clubId}")
     public void disband(@PathVariable UUID clubId) throws ServiceException {
         clubService.disbandClub(clubId, requireUser());
     }
@@ -263,6 +268,7 @@ public class ClubController {
     }
 
     @PatchMapping("/{clubId}") @ApiMessage("Cập nhật câu lạc bộ thành công")
+    @AuditLog(action = "UPDATE_CLUB", description = "Cập nhật câu lạc bộ #{#clubId}")
     public ClubResponseCommand update(@PathVariable UUID clubId,
             @Valid @RequestBody UpdateClubRequest request) throws ServiceException {
         return clubService.updateClub(UpdateClubCommand.builder()
@@ -273,12 +279,14 @@ public class ClubController {
     }
 
     @PatchMapping("/{clubId}/members/{membershipId}/role") @ApiMessage("Cập nhật vai trò thành viên thành công")
+    @AuditLog(action = "CHANGE_CLUB_MEMBER_ROLE", description = "Đổi vai trò thành viên #{#membershipId} của câu lạc bộ #{#clubId}")
     public ClubMemberResponseCommand changeRole(@PathVariable UUID clubId, @PathVariable UUID membershipId,
             @Valid @RequestBody ChangeClubMemberRoleRequest request) throws ServiceException {
         return clubService.changeMemberRole(clubId, membershipId, request.getRole(), requireUser());
     }
 
     @DeleteMapping("/{clubId}/members/{membershipId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "REMOVE_CLUB_MEMBER", description = "Xóa thành viên #{#membershipId} khỏi câu lạc bộ #{#clubId}")
     public void removeMember(@PathVariable UUID clubId, @PathVariable UUID membershipId,
             @RequestParam(defaultValue = "false") boolean ban) throws ServiceException {
         clubService.removeMember(clubId, membershipId, ban, requireUser());
@@ -286,6 +294,7 @@ public class ClubController {
 
     @PostMapping("/{clubId}/members/{membershipId}/unban") @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiMessage("Đã gỡ cấm người chơi")
+    @AuditLog(action = "UNBAN_CLUB_MEMBER", description = "Gỡ cấm thành viên #{#membershipId} của câu lạc bộ #{#clubId}")
     public void unbanMember(@PathVariable UUID clubId, @PathVariable UUID membershipId) throws ServiceException {
         clubService.unbanMember(clubId, membershipId, requireUser());
     }
@@ -300,6 +309,7 @@ public class ClubController {
     }
 
     @DeleteMapping("/{clubId}/activities/{activityId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    @AuditLog(action = "DELETE_CLUB_ACTIVITY", description = "Xóa hoạt động #{#activityId} của câu lạc bộ #{#clubId}")
     public void deleteActivity(@PathVariable UUID clubId, @PathVariable UUID activityId) throws ServiceException {
         activityService.deleteClubActivity(clubId, activityId, requireUser());
     }
