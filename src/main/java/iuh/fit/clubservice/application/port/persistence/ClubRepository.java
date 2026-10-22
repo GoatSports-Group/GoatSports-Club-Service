@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ public interface ClubRepository {
 
     void deleteById(UUID clubId);
 
-    java.util.List<Club> findFeaturedCandidates();
+    List<Club> findFeaturedCandidates();
 
     long countActive();
 

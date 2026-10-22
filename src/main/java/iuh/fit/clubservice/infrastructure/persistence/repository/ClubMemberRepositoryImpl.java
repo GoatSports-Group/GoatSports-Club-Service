@@ -10,7 +10,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -68,20 +72,20 @@ public class ClubMemberRepositoryImpl implements ClubMemberRepository {
     }
 
     @Override
-    public java.util.Map<UUID, Long> countActiveByClubIds(java.util.Collection<UUID> clubIds) {
-        if (clubIds.isEmpty()) return java.util.Map.of();
+    public Map<UUID, Long> countActiveByClubIds(Collection<UUID> clubIds) {
+        if (clubIds.isEmpty()) return Map.of();
         return toCountMap(jpaClubMemberRepository.countByClubIdsAndStatus(clubIds, ClubMemberStatus.ACTIVE));
     }
 
     @Override
-    public java.util.Map<UUID, Long> countJoinedSinceByClubIds(java.util.Collection<UUID> clubIds, java.time.LocalDateTime since) {
-        if (clubIds.isEmpty()) return java.util.Map.of();
+    public Map<UUID, Long> countJoinedSinceByClubIds(Collection<UUID> clubIds, LocalDateTime since) {
+        if (clubIds.isEmpty()) return Map.of();
         return toCountMap(jpaClubMemberRepository.countJoinedSince(clubIds, ClubMemberStatus.ACTIVE, since));
     }
 
     /** Hang (clubId, count) cua cac truy van group-by thanh map. */
-    private static java.util.Map<UUID, Long> toCountMap(List<Object[]> rows) {
-        java.util.Map<UUID, Long> counts = new java.util.HashMap<>();
+    private static Map<UUID, Long> toCountMap(List<Object[]> rows) {
+        Map<UUID, Long> counts = new HashMap<>();
         for (Object[] row : rows) counts.put((UUID) row[0], ((Number) row[1]).longValue());
         return counts;
     }

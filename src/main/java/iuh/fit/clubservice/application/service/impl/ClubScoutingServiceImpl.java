@@ -24,8 +24,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -162,7 +164,7 @@ public class ClubScoutingServiceImpl implements ClubScoutingService {
 
     @Override
     @Transactional(readOnly = true)
-    public Map<UUID, PlayerClubRelation> getRelations(UUID clubId, UUID actorUserId, java.util.Collection<UUID> userIds)
+    public Map<UUID, PlayerClubRelation> getRelations(UUID clubId, UUID actorUserId, Collection<UUID> userIds)
             throws ServiceException {
         Club club = requireManagedClub(clubId, actorUserId);
         if (userIds == null || userIds.isEmpty()) return Map.of();
@@ -170,7 +172,7 @@ public class ClubScoutingServiceImpl implements ClubScoutingService {
             throw new ServiceException("Mỗi lần chỉ tra tối đa " + MAX_RELATION_LOOKUP + " người.");
         }
         Map<UUID, PlayerClubRelation> relations = relationsOf(club);
-        Map<UUID, PlayerClubRelation> result = new java.util.LinkedHashMap<>();
+        Map<UUID, PlayerClubRelation> result = new LinkedHashMap<>();
         for (UUID userId : userIds) {
             if (userId != null) result.put(userId, relations.getOrDefault(userId, PlayerClubRelation.NONE));
         }

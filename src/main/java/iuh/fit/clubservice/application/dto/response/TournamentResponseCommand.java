@@ -4,6 +4,7 @@ import iuh.fit.clubservice.domain.enums.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,8 +28,8 @@ public class TournamentResponseCommand {
     private List<String> rules;
     private UUID venueId;
     private List<UUID> courtIds;
-    private java.time.LocalTime dailyStartTime;
-    private java.time.LocalTime dailyEndTime;
+    private LocalTime dailyStartTime;
+    private LocalTime dailyEndTime;
     private Integer matchDurationMinutes;
     private String playFormat;
     private String playFormatLabel;

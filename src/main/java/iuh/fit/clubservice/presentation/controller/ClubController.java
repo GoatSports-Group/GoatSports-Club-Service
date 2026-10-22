@@ -24,6 +24,8 @@ import iuh.fit.clubservice.presentation.annotation.ApiMessage;
 import iuh.fit.clubservice.presentation.converter.ClubConverter;
 import iuh.fit.clubservice.presentation.request.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.web.PageableDefault;
@@ -157,16 +159,16 @@ public class ClubController {
 
     /** Tab "Mời bạn bè": trạng thái của từng người bạn với CLB (client lấy danh sách bạn từ social-service). */
     @PostMapping("/{clubId}/scouting/relations") @ApiMessage("Lấy trạng thái với câu lạc bộ thành công")
-    public java.util.Map<UUID, iuh.fit.clubservice.application.dto.response.PlayerClubRelation> relations(
+    public Map<UUID, PlayerClubRelation> relations(
             @PathVariable UUID clubId,
             @Valid @RequestBody RelationLookupRequest request) throws ServiceException {
         return scoutingService.getRelations(clubId, requireUser(), request.userIds());
     }
 
     public record RelationLookupRequest(
-            @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.Size(max = 500, message = "Mỗi lần chỉ tra tối đa 500 người")
-            java.util.List<UUID> userIds) { }
+            @NotNull
+            @Size(max = 500, message = "Mỗi lần chỉ tra tối đa 500 người")
+            List<UUID> userIds) { }
 
     @GetMapping("/{clubId}/invitations") @ApiMessage("Lấy lời mời đã gửi thành công")
     public List<SentInvitationResponseCommand> sentInvitations(@PathVariable UUID clubId) throws ServiceException {
@@ -240,17 +242,17 @@ public class ClubController {
     }
 
     @GetMapping("/{clubId}/tournaments") @ApiMessage("Lấy các giải câu lạc bộ đã tham gia thành công")
-    public List<iuh.fit.clubservice.application.dto.response.ClubTournamentResponseCommand> tournaments(
+    public List<ClubTournamentResponseCommand> tournaments(
             @PathVariable UUID clubId) throws ServiceException {
         return matchService.getClubTournaments(clubId);
     }
 
     @PostMapping("/{clubId}/tournaments/{tournamentId}/share") @ResponseStatus(HttpStatus.CREATED)
     @ApiMessage("Đã đăng thành tích lên Cộng đồng")
-    public java.util.Map<String, UUID> shareTournament(@PathVariable UUID clubId, @PathVariable UUID tournamentId,
-            @Valid @RequestBody iuh.fit.clubservice.presentation.request.ShareHighlightRequest request)
+    public Map<String, UUID> shareTournament(@PathVariable UUID clubId, @PathVariable UUID tournamentId,
+            @Valid @RequestBody ShareHighlightRequest request)
             throws ServiceException {
-        return java.util.Map.of("postId",
+        return Map.of("postId",
                 matchService.shareTournament(clubId, tournamentId, requireUser(), request.title(), request.content()));
     }
 

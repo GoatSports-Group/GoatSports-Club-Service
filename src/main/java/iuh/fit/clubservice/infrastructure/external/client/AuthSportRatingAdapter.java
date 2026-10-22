@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
+import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.SportRatingPort;
 import iuh.fit.clubservice.domain.enums.SportType;
@@ -29,7 +30,7 @@ public class AuthSportRatingAdapter implements SportRatingPort {
     @Override
     public List<RatedPlayer> rateTournamentMatch(TournamentMatch match) throws ServiceException {
         try {
-            var response = client.rateTournamentMatch(match);
+            BaseResponse<List<RatedPlayer>> response = client.rateTournamentMatch(match);
             return response == null || response.getData() == null ? List.of() : response.getData();
         } catch (RuntimeException exception) {
             log.warn("Không tính được ELO cho trận {}: {}", match.fixtureId(), exception.getMessage());

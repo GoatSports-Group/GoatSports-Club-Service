@@ -5,6 +5,7 @@ import iuh.fit.clubservice.domain.entity.TournamentFixture;
 import iuh.fit.clubservice.infrastructure.persistence.mapper.TournamentFixtureEntityMapper;
 import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTournamentFixtureRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -43,7 +44,7 @@ public class TournamentFixtureRepositoryImpl implements TournamentFixtureReposit
 
     @Override
     public List<TournamentFixture> findRatingPending(int limit) {
-        return jpaTournamentFixtureRepository.findByRatingSyncedFalse(org.springframework.data.domain.PageRequest.of(0, limit))
+        return jpaTournamentFixtureRepository.findByRatingSyncedFalse(PageRequest.of(0, limit))
                 .stream().map(tournamentFixtureEntityMapper::toDomain).toList();
     }
 

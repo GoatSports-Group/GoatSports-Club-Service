@@ -2,6 +2,7 @@ package iuh.fit.clubservice.infrastructure.persistence.repository;
 
 import iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository;
 import iuh.fit.clubservice.domain.entity.TournamentLineup;
+import iuh.fit.clubservice.domain.enums.LineupMemberStatus;
 import iuh.fit.clubservice.infrastructure.persistence.mapper.TournamentLineupEntityMapper;
 import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTournamentLineupRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class TournamentLineupRepositoryImpl implements TournamentLineupRepositor
 
     @Override
     public List<TournamentLineup> findByPlayerIdAndMemberStatus(UUID playerId,
-            iuh.fit.clubservice.domain.enums.LineupMemberStatus memberStatus) {
+            LineupMemberStatus memberStatus) {
         return jpaTournamentLineupRepository.findByPlayerIdAndMemberStatus(playerId, memberStatus).stream()
                 .map(tournamentLineupEntityMapper::toDomain)
                 .collect(Collectors.toList());

@@ -21,7 +21,7 @@ class TournamentCapacityPolicyTest {
     @Test
     void courtsTimesDaysTimesMatchesThatFitTheWindow() {
         // 2 san x 3 ngay x floor(150 phut / 45) = 2 x 3 x 3 = 18 luot.
-        var capacity = TournamentCapacityPolicy.capacity(TournamentFormat.ROUND_ROBIN, 6, 2,
+        TournamentCapacityPolicy.Capacity capacity = TournamentCapacityPolicy.capacity(TournamentFormat.ROUND_ROBIN, 6, 2,
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 3), LocalTime.of(17, 0), LocalTime.of(19, 30), 45);
 
         assertThat(capacity.availableMatches()).isEqualTo(18);
@@ -32,7 +32,7 @@ class TournamentCapacityPolicyTest {
 
     @Test
     void shortageExplainsTheGap() {
-        var capacity = TournamentCapacityPolicy.capacity(TournamentFormat.ROUND_ROBIN, 8, 1,
+        TournamentCapacityPolicy.Capacity capacity = TournamentCapacityPolicy.capacity(TournamentFormat.ROUND_ROBIN, 8, 1,
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 1), LocalTime.of(18, 0), LocalTime.of(20, 0), 60);
 
         assertThat(capacity.enough()).isFalse();

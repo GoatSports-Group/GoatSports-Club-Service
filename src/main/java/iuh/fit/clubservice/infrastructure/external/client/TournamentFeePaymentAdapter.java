@@ -1,6 +1,7 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
 import feign.FeignException;
+import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.TournamentFeePayment;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class TournamentFeePaymentAdapter implements TournamentFeePayment {
     public Checkout checkout(UUID registrationId, UUID payerId, double amount, String description,
                              LocalDateTime deadline) throws ServiceException {
         try {
-            var response = paymentClient.createTournamentFeeCheckout(
+            BaseResponse<PaymentClient.CheckoutView> response = paymentClient.createTournamentFeeCheckout(
                     new PaymentClient.CheckoutPayload(payerId, registrationId, amount, description, deadline));
             PaymentClient.CheckoutView view = response == null ? null : response.getData();
             if (view == null) throw new ServiceException("Cổng thanh toán không trả về mã thanh toán.");

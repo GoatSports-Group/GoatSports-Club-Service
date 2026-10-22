@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -87,7 +88,7 @@ public class ClubRepositoryImpl implements ClubRepository {
     }
 
     @Override
-    public java.util.List<Club> findFeaturedCandidates() {
+    public List<Club> findFeaturedCandidates() {
         return jpaClubRepository.findByActiveTrueAndDisbandedAtIsNullAndPrivacy(ClubPrivacy.PUBLIC).stream()
                 .map(clubEntityMapper::toDomain)
                 .toList();

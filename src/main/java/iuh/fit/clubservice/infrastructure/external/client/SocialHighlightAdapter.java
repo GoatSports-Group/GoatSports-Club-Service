@@ -1,6 +1,7 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
 import feign.FeignException;
+import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.CommunityHighlightPublisher;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class SocialHighlightAdapter implements CommunityHighlightPublisher {
     @Override
     public UUID publishTournament(TournamentHighlight highlight) throws ServiceException {
         try {
-            var response = client.publish(new SocialHighlightClient.HighlightPayload(highlight.authorId(),
+            BaseResponse<SocialHighlightClient.PostView> response = client.publish(new SocialHighlightClient.HighlightPayload(highlight.authorId(),
                     highlight.sport() == null ? null : highlight.sport().name(), highlight.content(), "TOURNAMENT",
                     highlight.tournamentId(), highlight.title(), highlight.headline(), highlight.subtitle(),
                     highlight.result(), List.of(),

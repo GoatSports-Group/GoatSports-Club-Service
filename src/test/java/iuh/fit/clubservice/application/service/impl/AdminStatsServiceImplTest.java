@@ -2,6 +2,7 @@ package iuh.fit.clubservice.application.service.impl;
 
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
+import iuh.fit.clubservice.application.service.AdminStatsService;
 import iuh.fit.clubservice.domain.entity.Tournament;
 import iuh.fit.clubservice.domain.enums.TournamentStatus;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class AdminStatsServiceImplTest {
         when(clubRepository.countActive()).thenReturn(12L);
         when(clubRepository.countDisbanded()).thenReturn(2L);
 
-        var stats = new AdminStatsServiceImpl(clubRepository, tournamentRepository).getCommunityStats();
+        AdminStatsService.CommunityStats stats = new AdminStatsServiceImpl(clubRepository, tournamentRepository).getCommunityStats();
 
         assertThat(stats.tournaments()).isEqualTo(3);
         assertThat(stats.tournamentsByStatus())

@@ -2,10 +2,12 @@ package iuh.fit.clubservice.infrastructure.persistence.repository;
 
 import iuh.fit.clubservice.application.port.persistence.TournamentPaymentRepository;
 import iuh.fit.clubservice.domain.entity.TournamentPayment;
+import iuh.fit.clubservice.domain.enums.FeePaymentStatus;
 import iuh.fit.clubservice.infrastructure.persistence.entity.TournamentPaymentEntity;
 import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTournamentPaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,7 +19,7 @@ public class TournamentPaymentRepositoryImpl implements TournamentPaymentReposit
     @Override public Optional<TournamentPayment> findByRegistrationId(UUID registrationId) {
         return repository.findByRegistrationId(registrationId).map(this::toDomain);
     }
-    @Override public java.util.List<TournamentPayment> findByStatus(iuh.fit.clubservice.domain.enums.FeePaymentStatus status) {
+    @Override public List<TournamentPayment> findByStatus(FeePaymentStatus status) {
         return repository.findByStatus(status).stream().map(this::toDomain).toList();
     }
     private TournamentPaymentEntity toEntity(TournamentPayment value) {

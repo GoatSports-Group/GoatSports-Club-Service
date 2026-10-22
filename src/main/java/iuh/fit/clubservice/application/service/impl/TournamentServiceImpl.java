@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 import java.util.List;
 import java.time.LocalDateTime;
@@ -188,10 +189,10 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     private void assertEnoughCourts(TournamentFormat format, int maxParticipants, int courts, LocalDate start,
-                                    LocalDate end, java.time.LocalTime dailyStart, java.time.LocalTime dailyEnd,
+                                    LocalDate end, LocalTime dailyStart, LocalTime dailyEnd,
                                     int matchMinutes) throws ServiceException {
         if (start.isBefore(LocalDate.now())) throw new ServiceException("Ngày khai mạc đã qua.");
-        var capacity = TournamentCapacityPolicy.capacity(format, maxParticipants, courts, start, end,
+        TournamentCapacityPolicy.Capacity capacity = TournamentCapacityPolicy.capacity(format, maxParticipants, courts, start, end,
                 dailyStart, dailyEnd, matchMinutes);
         Optional<String> shortage = TournamentCapacityPolicy.shortage(capacity, courts, matchMinutes);
         if (shortage.isPresent()) throw new ServiceException(shortage.get());

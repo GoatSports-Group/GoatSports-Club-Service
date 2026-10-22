@@ -5,7 +5,10 @@ import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,10 +30,10 @@ public interface ClubMemberRepository {
     long countByClubIdAndStatus(UUID clubId, ClubMemberStatus status);
 
     /** So thanh vien ACTIVE theo CLB (CLB khong co ai thi vang mat khoi map). */
-    java.util.Map<UUID, Long> countActiveByClubIds(java.util.Collection<UUID> clubIds);
+    Map<UUID, Long> countActiveByClubIds(Collection<UUID> clubIds);
 
     /** So thanh vien ACTIVE vao CLB tu thoi diem `since`. */
-    java.util.Map<UUID, Long> countJoinedSinceByClubIds(java.util.Collection<UUID> clubIds, java.time.LocalDateTime since);
+    Map<UUID, Long> countJoinedSinceByClubIds(Collection<UUID> clubIds, LocalDateTime since);
 
     void deleteById(UUID membershipId);
 }

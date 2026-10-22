@@ -10,7 +10,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,14 +43,14 @@ public class ClubActivityRepositoryImpl implements ClubActivityRepository {
     }
 
     @Override
-    public Page<ClubActivity> findUpcomingByClubId(UUID clubId, java.time.LocalDateTime from, Pageable pageable) {
+    public Page<ClubActivity> findUpcomingByClubId(UUID clubId, LocalDateTime from, Pageable pageable) {
         return jpaClubActivityRepository
                 .findByClubIdAndStartAtGreaterThanEqualOrderByStartAtAsc(clubId, from, pageable)
                 .map(clubActivityEntityMapper::toDomain);
     }
 
     @Override
-    public List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from) {
+    public List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, LocalDateTime from) {
         if (clubIds == null || clubIds.isEmpty()) return List.of();
         return jpaClubActivityRepository
                 .findByClubIdInAndStartAtGreaterThanEqualOrderByStartAtAsc(clubIds, from).stream()
@@ -55,7 +59,7 @@ public class ClubActivityRepositoryImpl implements ClubActivityRepository {
     }
 
     @Override
-    public Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from,
+    public Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, LocalDateTime from,
                                                     Pageable pageable) {
         if (clubIds == null || clubIds.isEmpty()) return new PageImpl<>(List.of(), pageable, 0);
         return jpaClubActivityRepository
@@ -69,15 +73,15 @@ public class ClubActivityRepositoryImpl implements ClubActivityRepository {
     }
 
     @Override
-    public java.util.Map<UUID, Long> countByClubIdsBetween(java.util.Collection<UUID> clubIds,
-            java.time.LocalDateTime from, java.time.LocalDateTime to) {
-        if (clubIds.isEmpty()) return java.util.Map.of();
+    public Map<UUID, Long> countByClubIdsBetween(Collection<UUID> clubIds,
+            LocalDateTime from, LocalDateTime to) {
+        if (clubIds.isEmpty()) return Map.of();
         return toCountMap(jpaClubActivityRepository.countByClubIdsBetween(clubIds, from, to));
     }
 
     /** Hang (clubId, count) cua cac truy van group-by thanh map. */
-    private static java.util.Map<UUID, Long> toCountMap(List<Object[]> rows) {
-        java.util.Map<UUID, Long> counts = new java.util.HashMap<>();
+    private static Map<UUID, Long> toCountMap(List<Object[]> rows) {
+        Map<UUID, Long> counts = new HashMap<>();
         for (Object[] row : rows) counts.put((UUID) row[0], ((Number) row[1]).longValue());
         return counts;
     }

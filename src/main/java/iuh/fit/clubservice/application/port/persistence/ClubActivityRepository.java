@@ -4,7 +4,10 @@ import iuh.fit.clubservice.domain.entity.ClubActivity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,15 +18,15 @@ public interface ClubActivityRepository {
 
     List<ClubActivity> findByClubId(UUID clubId);
 
-    Page<ClubActivity> findUpcomingByClubId(UUID clubId, java.time.LocalDateTime from, Pageable pageable);
+    Page<ClubActivity> findUpcomingByClubId(UUID clubId, LocalDateTime from, Pageable pageable);
 
-    List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from);
+    List<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, LocalDateTime from);
 
-    Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, java.time.LocalDateTime from, Pageable pageable);
+    Page<ClubActivity> findUpcomingByClubIds(List<UUID> clubIds, LocalDateTime from, Pageable pageable);
 
     /** So buoi sinh hoat co startAt trong [from, to] theo CLB. */
-    java.util.Map<UUID, Long> countByClubIdsBetween(java.util.Collection<UUID> clubIds,
-            java.time.LocalDateTime from, java.time.LocalDateTime to);
+    Map<UUID, Long> countByClubIdsBetween(Collection<UUID> clubIds,
+            LocalDateTime from, LocalDateTime to);
 
     void deleteById(UUID activityId);
 }

@@ -5,7 +5,9 @@ import iuh.fit.clubservice.domain.enums.EligibilityRuleOperator;
 import iuh.fit.clubservice.domain.enums.EligibilityRuleType;
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.enums.TournamentFormat;
+import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
 import lombok.*;
+import java.time.Duration;
 import java.time.LocalDate;
 import iuh.fit.clubservice.domain.service.EligibilityPolicy;
 
@@ -76,10 +78,10 @@ public class CreateTournamentCommand {
         if (matchDurationMinutes == null || matchDurationMinutes < 15 || matchDurationMinutes > 240) {
             throw new ServiceException("Mỗi trận kéo dài từ 15 đến 240 phút.");
         }
-        if (java.time.Duration.between(dailyStartTime, dailyEndTime).toMinutes() < matchDurationMinutes) {
+        if (Duration.between(dailyStartTime, dailyEndTime).toMinutes() < matchDurationMinutes) {
             throw new ServiceException("Khung giờ mỗi ngày phải đủ cho ít nhất một trận.");
         }
-        var format = iuh.fit.clubservice.domain.service.SportParticipationPolicy.find(playFormat)
+        SportParticipationPolicy.PlayFormat format = SportParticipationPolicy.find(playFormat)
                 .orElseThrow(() -> new ServiceException("Hình thức thi đấu không hợp lệ."));
         if (format.sport() != sportType) {
             throw new ServiceException("Hình thức thi đấu không thuộc môn đã chọn.");

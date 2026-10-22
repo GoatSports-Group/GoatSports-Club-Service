@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.application.service.impl;
 
+import iuh.fit.clubservice.application.dto.response.ClubPhotoResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.ClubMediaStorage;
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -63,7 +65,7 @@ class ClubPhotoServiceImplTest {
             return photos;
         });
 
-        var result = service.addPhotos(clubId, ownerId, List.of(temporaryKey));
+        List<ClubPhotoResponseCommand> result = service.addPhotos(clubId, ownerId, List.of(temporaryKey));
 
         assertThat(result).singleElement().satisfies(photo -> {
             assertThat(photo.getClubId()).isEqualTo(clubId);
@@ -81,7 +83,7 @@ class ClubPhotoServiceImplTest {
         when(mediaStorage.finalizeUploads(anyList(), anyString())).thenReturn(urls);
         when(photoRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = service.addPhotos(clubId, ownerId, keys);
+        List<ClubPhotoResponseCommand> result = service.addPhotos(clubId, ownerId, keys);
 
         ArgumentCaptor<List<String>> captor = ArgumentCaptor.captor();
         verify(mediaStorage, times(1)).finalizeUploads(captor.capture(), anyString());
@@ -109,8 +111,8 @@ class ClubPhotoServiceImplTest {
 
     @Test
     void photosAreReturnedAsARequestedPage() throws Exception {
-        var pageable = PageRequest.of(1, 12);
-        var photo = ClubPhoto.builder()
+        PageRequest pageable = PageRequest.of(1, 12);
+        ClubPhoto photo = ClubPhoto.builder()
                 .photoId(UUID.randomUUID())
                 .clubId(clubId)
                 .imageUrl("https://cdn.goatsports.test/clubs/gallery/photo.webp")
@@ -119,7 +121,7 @@ class ClubPhotoServiceImplTest {
         when(photoRepository.findByClubId(clubId, pageable))
                 .thenReturn(new PageImpl<>(List.of(photo), pageable, 13));
 
-        var result = service.getPhotos(clubId, pageable);
+        Page<ClubPhotoResponseCommand> result = service.getPhotos(clubId, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(13);
         assertThat(result.getContent()).singleElement()
@@ -166,7 +168,7 @@ class ClubPhotoServiceImplTest {
                 .thenReturn(List.of("https://cdn.goatsports.test/clubs/gallery/manager-upload.webp"));
         when(photoRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = service.addPhotos(clubId, managerId, List.of(temporaryKey));
+        List<ClubPhotoResponseCommand> result = service.addPhotos(clubId, managerId, List.of(temporaryKey));
 
         assertThat(result).hasSize(1);
     }

@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.external.kafka;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ class PaymentEventConsumerTest {
     @Test
     void readsPaidAtSentAsNumberArray() throws Exception {
         // Đúng dạng payment-service đang gửi qua Kafka (JsonSerializer mặc định).
-        var node = mapper.readTree("[2026,9,26,18,7,31,676603600]");
+        JsonNode node = mapper.readTree("[2026,9,26,18,7,31,676603600]");
         assertThat(PaymentEventConsumer.dateTime(node)).isEqualTo(LocalDateTime.of(2026, 9, 26, 18, 7, 31, 676603600));
     }
 

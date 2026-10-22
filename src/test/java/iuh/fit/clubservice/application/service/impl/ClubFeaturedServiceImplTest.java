@@ -10,6 +10,7 @@ import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.ClubMember;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.SportType;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -89,7 +90,7 @@ class ClubFeaturedServiceImplTest {
                 .filter(item -> item.getClub().getName().equals("Bóng Đá Sài Gòn")).findFirst().orElseThrow();
         assertThat(football.isSameSport()).isTrue();
         assertThat(football.isSameCity()).isTrue();
-        assertThat(football.getScore()).isCloseTo(guestFootball * 1.25 * 1.15, org.assertj.core.data.Offset.offset(0.2));
+        assertThat(football.getScore()).isCloseTo(guestFootball * 1.25 * 1.15, Offset.offset(0.2));
         assertThat(page.getTotalElements()).isEqualTo(2);
     }
 

@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -36,7 +37,7 @@ public interface TournamentService {
     /** Số giải theo từng trạng thái hiệu lực + tổng suất đang giữ, trên toàn bộ giải của chủ sân. */
     OrganizerSummary getOrganizerSummary(UUID userId);
 
-    record OrganizerSummary(java.util.Map<TournamentStatus, Long> byStatus, long total, long seatsHeld) { }
+    record OrganizerSummary(Map<TournamentStatus, Long> byStatus, long total, long seatsHeld) { }
 
     TournamentResponseCommand getTournamentDetails(UUID tournamentId, UUID viewerId) throws ServiceException;
 

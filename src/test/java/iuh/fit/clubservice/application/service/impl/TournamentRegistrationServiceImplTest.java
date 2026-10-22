@@ -1,16 +1,20 @@
 package iuh.fit.clubservice.application.service.impl;
 
 import iuh.fit.clubservice.application.dto.request.RegisterTournamentTeamCommand;
+import iuh.fit.clubservice.application.dto.response.TournamentRegistrationResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
+import iuh.fit.clubservice.application.port.external.SportRatingPort;
 import iuh.fit.clubservice.application.port.external.TournamentEventPublisher;
 import iuh.fit.clubservice.application.port.external.TournamentFeePayment;
 import iuh.fit.clubservice.application.port.persistence.*;
+import iuh.fit.clubservice.application.service.TournamentRegistrationService;
 import iuh.fit.clubservice.domain.entity.*;
 import iuh.fit.clubservice.domain.enums.*;
 import iuh.fit.clubservice.application.service.TournamentPaymentEventService;
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,7 +61,7 @@ class TournamentRegistrationServiceImplTest {
 
     private TournamentRegistrationServiceImpl service;
     private TournamentTeamServiceImpl teams;
-    @Mock private iuh.fit.clubservice.application.port.external.SportRatingPort sportRatingPort;
+    @Mock private SportRatingPort sportRatingPort;
     private final UUID tournamentId = UUID.randomUUID();
     private final UUID organizerId = UUID.randomUUID();
     private final Map<UUID, TournamentRegistration> registrations = new LinkedHashMap<>();
@@ -99,7 +103,7 @@ class TournamentRegistrationServiceImplTest {
         when(lineupRepository.findByPlayerIdAndMemberStatus(any(), any())).thenAnswer(call -> lineups.values().stream()
                 .filter(row -> row.getPlayerId().equals(call.getArgument(0)) && row.getMemberStatus() == call.getArgument(1))
                 .toList());
-        org.mockito.Mockito.doAnswer(call -> lineups.remove(call.<UUID>getArgument(0)))
+        Mockito.doAnswer(call -> lineups.remove(call.<UUID>getArgument(0)))
                 .when(lineupRepository).deleteById(any());
         when(paymentRepository.save(any())).thenAnswer(call -> {
             TournamentPayment payment = call.getArgument(0);
@@ -152,7 +156,7 @@ class TournamentRegistrationServiceImplTest {
     void singlesWithFeeWaitsForPaymentWithin24Hours() throws ServiceException {
         UUID player = UUID.randomUUID();
 
-        var response = service.register(individual(player));
+        TournamentRegistrationResponseCommand response = service.register(individual(player));
 
         assertThat(response.getStatus()).isEqualTo(RegistrationStatus.PENDING_PAYMENT);
         assertThat(response.getPaymentDeadline())
@@ -166,7 +170,7 @@ class TournamentRegistrationServiceImplTest {
     void freeTournamentConfirmsImmediately() throws ServiceException {
         useTournament("BADMINTON_SINGLES", 0D, 8);
 
-        var response = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand response = service.register(individual(UUID.randomUUID()));
 
         assertThat(response.getStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
         verify(conversationSync).syncTournament(any(), any());
@@ -231,14 +235,14 @@ class TournamentRegistrationServiceImplTest {
         UUID captain = UUID.randomUUID();
         UUID partner = UUID.randomUUID();
 
-        var created = service.register(team(captain, "Đôi Sấm Sét", partner));
+        TournamentRegistrationResponseCommand created = service.register(team(captain, "Đôi Sấm Sét", partner));
         assertThat(created.getStatus()).isEqualTo(RegistrationStatus.PENDING_MEMBERS);
         assertThat(created.getLineups()).extracting("memberStatus")
                 .containsExactlyInAnyOrder(LineupMemberStatus.ACCEPTED, LineupMemberStatus.INVITED);
         verify(eventPublisher).publish(eq(TournamentEventPublisher.TEAM_INVITED), any(), eq(partner), eq(captain), any());
         assertThat(teams.getMyInvitations(partner)).hasSize(1);
 
-        var accepted = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
+        TournamentRegistrationResponseCommand accepted = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
 
         assertThat(accepted.getStatus()).isEqualTo(RegistrationStatus.PENDING_PAYMENT);
         assertThat(accepted.getPaymentDeadline()).isNotNull();
@@ -253,9 +257,9 @@ class TournamentRegistrationServiceImplTest {
     void profileServiceOutageDoesNotBlockRegistration() throws ServiceException {
         useTournament("BADMINTON_SINGLES", 0D, 8);
         UUID player = UUID.randomUUID();
-        org.mockito.Mockito.doThrow(new ServiceException("down")).when(sportRatingPort).ensureProfile(any(), any());
+        Mockito.doThrow(new ServiceException("down")).when(sportRatingPort).ensureProfile(any(), any());
 
-        var response = service.register(individual(player));
+        TournamentRegistrationResponseCommand response = service.register(individual(player));
 
         assertThat(response.getStatus()).isEqualTo(RegistrationStatus.CONFIRMED);
         verify(sportRatingPort).ensureProfile(player, tournament.getSportType());
@@ -267,9 +271,9 @@ class TournamentRegistrationServiceImplTest {
         useTournament("BADMINTON_DOUBLES", 0D, 8);
         UUID captain = UUID.randomUUID();
         UUID partner = UUID.randomUUID();
-        var created = service.register(team(captain, "Đôi B", partner));
+        TournamentRegistrationResponseCommand created = service.register(team(captain, "Đôi B", partner));
 
-        var answered = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, false);
+        TournamentRegistrationResponseCommand answered = teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, false);
 
         assertThat(answered.getStatus()).isEqualTo(RegistrationStatus.PENDING_MEMBERS);
         verify(eventPublisher).publish(eq(TournamentEventPublisher.TEAM_ANSWERED), any(), eq(captain), eq(partner), any());
@@ -280,8 +284,8 @@ class TournamentRegistrationServiceImplTest {
     void playerCannotJoinTwoTeams() throws ServiceException {
         useTournament("BADMINTON_DOUBLES", 0D, 8);
         UUID shared = UUID.randomUUID();
-        var first = service.register(team(UUID.randomUUID(), "Đôi 1", shared));
-        var second = service.register(team(UUID.randomUUID(), "Đôi 2", shared));
+        TournamentRegistrationResponseCommand first = service.register(team(UUID.randomUUID(), "Đôi 1", shared));
+        TournamentRegistrationResponseCommand second = service.register(team(UUID.randomUUID(), "Đôi 2", shared));
 
         teams.respondInvitation(tournamentId, first.getRegistrationId(), shared, true);
 
@@ -342,7 +346,7 @@ class TournamentRegistrationServiceImplTest {
         useTournament("BADMINTON_DOUBLES", 0D, 8);
         UUID captain = UUID.randomUUID();
         UUID partner = UUID.randomUUID();
-        var created = service.register(team(captain, "Đôi C", partner));
+        TournamentRegistrationResponseCommand created = service.register(team(captain, "Đôi C", partner));
         teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
 
         assertThatThrownBy(() -> teams.removeMember(tournamentId, created.getRegistrationId(), captain, partner))
@@ -357,7 +361,7 @@ class TournamentRegistrationServiceImplTest {
         useTournament("BADMINTON_DOUBLES", 0D, 8);
         UUID captain = UUID.randomUUID();
         UUID partner = UUID.randomUUID();
-        var created = service.register(team(captain, "Đôi E", partner));
+        TournamentRegistrationResponseCommand created = service.register(team(captain, "Đôi E", partner));
         teams.respondInvitation(tournamentId, created.getRegistrationId(), partner, true);
         tournament.setRegistrationCloseDate(LocalDate.now().minusDays(1));
 
@@ -375,12 +379,12 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("checkout: payment-service báo đã trả (lỡ sự kiện) thì xác nhận đăng ký ngay")
     void checkoutConfirmsWhenPaymentAlreadySucceeded() throws ServiceException {
         UUID player = UUID.randomUUID();
-        var registration = service.register(individual(player));
+        TournamentRegistrationResponseCommand registration = service.register(individual(player));
         UUID paymentId = UUID.randomUUID();
         when(feePayment.checkout(any(), any(), anyDouble(), anyString(), any())).thenAnswer(call ->
                 new TournamentFeePayment.Checkout(paymentId, "SUCCEEDED", null, null, call.getArgument(4)));
 
-        var checkout = service.checkout(tournamentId, registration.getRegistrationId(), player);
+        TournamentRegistrationService.FeeCheckout checkout = service.checkout(tournamentId, registration.getRegistrationId(), player);
 
         assertThat(checkout.status()).isEqualTo("SUCCEEDED");
         verify(paymentEventService).apply(eq(paymentId), eq(player), eq(registration.getRegistrationId()),
@@ -391,11 +395,11 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("checkout: số tiền lấy từ giải, hạn là hạn giữ suất, chỉ người đăng ký được trả")
     void checkoutUsesServerSidePriceAndDeadline() throws ServiceException {
         UUID player = UUID.randomUUID();
-        var registration = service.register(individual(player));
+        TournamentRegistrationResponseCommand registration = service.register(individual(player));
         when(feePayment.checkout(any(), any(), anyDouble(), anyString(), any())).thenAnswer(call ->
                 new TournamentFeePayment.Checkout(UUID.randomUUID(), "PENDING", "https://pay/x", "qr", call.getArgument(4)));
 
-        var checkout = service.checkout(tournamentId, registration.getRegistrationId(), player);
+        TournamentRegistrationService.FeeCheckout checkout = service.checkout(tournamentId, registration.getRegistrationId(), player);
 
         assertThat(checkout.amount()).isEqualTo(150_000D);
         assertThat(checkout.expiresAt()).isEqualTo(registration.getPaymentDeadline());
@@ -409,7 +413,7 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("quá hạn 24 giờ thì không tạo mã thanh toán nữa")
     void checkoutAfterDeadlineIsRefused() throws ServiceException {
         UUID player = UUID.randomUUID();
-        var registration = service.register(individual(player));
+        TournamentRegistrationResponseCommand registration = service.register(individual(player));
         registrations.get(registration.getRegistrationId()).setPaymentDeadline(LocalDateTime.now().minusMinutes(1));
 
         assertThatThrownBy(() -> service.checkout(tournamentId, registration.getRegistrationId(), player))
@@ -421,7 +425,7 @@ class TournamentRegistrationServiceImplTest {
     void formingTeamCannotPay() throws ServiceException {
         useTournament("BADMINTON_DOUBLES", 200_000D, 8);
         UUID captain = UUID.randomUUID();
-        var created = service.register(team(captain, "Đôi D", UUID.randomUUID()));
+        TournamentRegistrationResponseCommand created = service.register(team(captain, "Đôi D", UUID.randomUUID()));
 
         assertThatThrownBy(() -> service.checkout(tournamentId, created.getRegistrationId(), captain))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("đủ 2 người");
@@ -431,7 +435,7 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("rút đăng ký đã đóng phí: tự gửi yêu cầu hoàn và báo cho người đăng ký")
     void withdrawingPaidRegistrationRequestsRefund() throws ServiceException {
         UUID player = UUID.randomUUID();
-        var registration = service.register(individual(player));
+        TournamentRegistrationResponseCommand registration = service.register(individual(player));
         TournamentPayment payment = payments.get(registration.getRegistrationId());
         payment.setStatus(FeePaymentStatus.SUCCEEDED);
         payment.setPaymentId(UUID.randomUUID());
@@ -452,7 +456,7 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("gửi yêu cầu hoàn lỗi lúc rút: job gửi lại tới khi được, không hoàn hai lần")
     void failedRefundRequestIsRetriedLater() throws ServiceException {
         UUID player = UUID.randomUUID();
-        var registration = service.register(individual(player));
+        TournamentRegistrationResponseCommand registration = service.register(individual(player));
         TournamentPayment payment = payments.get(registration.getRegistrationId());
         payment.setStatus(FeePaymentStatus.SUCCEEDED);
         payment.setPaymentId(UUID.randomUUID());
@@ -475,7 +479,7 @@ class TournamentRegistrationServiceImplTest {
     @Test
     @DisplayName("ban tổ chức không từ chối được người tham gia")
     void organizerCannotRejectRegistration() throws ServiceException {
-        var registration = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand registration = service.register(individual(UUID.randomUUID()));
 
         assertThatThrownBy(() -> service.cancel(tournamentId, registration.getRegistrationId(), organizerId, "Sai hạng cân"))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("không thể từ chối");
@@ -485,7 +489,7 @@ class TournamentRegistrationServiceImplTest {
     @Test
     @DisplayName("người ngoài không hủy được đăng ký của người khác")
     void strangerCannotCancel() throws ServiceException {
-        var registration = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand registration = service.register(individual(UUID.randomUUID()));
 
         assertThatThrownBy(() -> service.cancel(tournamentId, registration.getRegistrationId(), UUID.randomUUID(), null))
                 .isInstanceOf(ServiceException.class).hasMessageContaining("không có quyền");
@@ -496,7 +500,7 @@ class TournamentRegistrationServiceImplTest {
     @Test
     @DisplayName("quá hạn đóng phí: job trả suất và ghi lý do")
     void overduePaymentExpires() throws ServiceException {
-        var registration = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand registration = service.register(individual(UUID.randomUUID()));
         TournamentRegistration stored = registrations.get(registration.getRegistrationId());
         stored.setPaymentDeadline(LocalDateTime.now().minusMinutes(5));
         when(registrationRepository.findByStatusAndPaymentDeadlineBefore(eq(RegistrationStatus.PENDING_PAYMENT), any()))
@@ -514,7 +518,7 @@ class TournamentRegistrationServiceImplTest {
     @DisplayName("đội chưa đủ người khi hết hạn đăng ký thì bị đóng")
     void formingTeamExpiresAfterRegistrationClose() throws ServiceException {
         useTournament("BADMINTON_DOUBLES", 0D, 8);
-        var created = service.register(team(UUID.randomUUID(), "Đôi E", UUID.randomUUID()));
+        TournamentRegistrationResponseCommand created = service.register(team(UUID.randomUUID(), "Đôi E", UUID.randomUUID()));
         tournament.setRegistrationCloseDate(LocalDate.now().minusDays(1));
         when(registrationRepository.findByStatus(RegistrationStatus.PENDING_MEMBERS))
                 .thenReturn(List.of(registrations.get(created.getRegistrationId())));
@@ -527,10 +531,10 @@ class TournamentRegistrationServiceImplTest {
     @Test
     @DisplayName("hủy giải: mọi đăng ký giữ suất bị đóng, ai đã đóng phí được hoàn")
     void cancelledTournamentClosesEveryone() throws ServiceException {
-        var paid = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand paid = service.register(individual(UUID.randomUUID()));
         payments.get(paid.getRegistrationId()).setStatus(FeePaymentStatus.SUCCEEDED);
         payments.get(paid.getRegistrationId()).setPaymentId(UUID.randomUUID());
-        var unpaid = service.register(individual(UUID.randomUUID()));
+        TournamentRegistrationResponseCommand unpaid = service.register(individual(UUID.randomUUID()));
 
         service.closeAllForCancelledTournament(tournament, organizerId);
 

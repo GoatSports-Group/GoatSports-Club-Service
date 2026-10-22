@@ -3,6 +3,7 @@ package iuh.fit.clubservice.application.service.impl;
 import iuh.fit.clubservice.application.port.persistence.TournamentPaymentRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
+import iuh.fit.clubservice.application.service.TournamentRevenueService;
 import iuh.fit.clubservice.domain.entity.Tournament;
 import iuh.fit.clubservice.domain.entity.TournamentPayment;
 import iuh.fit.clubservice.domain.entity.TournamentRegistration;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageImpl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,11 +49,11 @@ class TournamentRevenueServiceImplTest {
                 TournamentRegistration.builder().registrationId(paid).build(),
                 TournamentRegistration.builder().registrationId(refunded).build()));
         when(paymentRepository.findByRegistrationId(paid)).thenReturn(Optional.of(TournamentPayment.builder()
-                .amount(5_000D).status(FeePaymentStatus.SUCCEEDED).paidAt(LocalDateTime.of(day, java.time.LocalTime.NOON)).build()));
+                .amount(5_000D).status(FeePaymentStatus.SUCCEEDED).paidAt(LocalDateTime.of(day, LocalTime.NOON)).build()));
         when(paymentRepository.findByRegistrationId(refunded)).thenReturn(Optional.of(TournamentPayment.builder()
-                .amount(5_000D).status(FeePaymentStatus.REFUND_REQUESTED).paidAt(LocalDateTime.of(day, java.time.LocalTime.NOON)).build()));
+                .amount(5_000D).status(FeePaymentStatus.REFUND_REQUESTED).paidAt(LocalDateTime.of(day, LocalTime.NOON)).build()));
 
-        var revenue = service.getOwnerRevenue(owner, null, day.minusDays(3), day);
+        TournamentRevenueService.OwnerTournamentRevenue revenue = service.getOwnerRevenue(owner, null, day.minusDays(3), day);
 
         assertThat(revenue.feeIncome()).isEqualTo(5_000D);
         assertThat(revenue.prizeExpense()).isEqualTo(8_000D);

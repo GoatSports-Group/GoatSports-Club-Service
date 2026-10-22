@@ -2,6 +2,9 @@ package iuh.fit.clubservice.application.service.impl;
 
 import iuh.fit.clubservice.application.dto.request.ScoutingQueryCommand;
 import iuh.fit.clubservice.application.dto.response.PlayerClubRelation;
+import iuh.fit.clubservice.application.dto.response.ScoutedPlayerResponseCommand;
+import iuh.fit.clubservice.application.dto.response.SentInvitationResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ShortlistEntryResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
 import iuh.fit.clubservice.application.port.external.PlayerProfileProvider.ScoutingFilter;
@@ -31,6 +34,7 @@ import org.mockito.quality.Strictness;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -170,7 +174,7 @@ class ClubScoutingServiceImplTest {
                 candidate(stranger, 3, 5, null),
                 hidden(hiddenPlayer)));
 
-        var result = service.findCandidates(clubId, ownerId, null);
+        List<ScoutedPlayerResponseCommand> result = service.findCandidates(clubId, ownerId, null);
 
         // Nguoi da roi CLB van moi lai duoc, nen con dung hai nguoi.
         assertThat(result).extracting("userId").containsExactlyInAnyOrder(leftMember, stranger);
@@ -188,7 +192,7 @@ class ClubScoutingServiceImplTest {
                 candidate(far, 24, 0, 1.0),
                 candidate(near, 2, 20, 30.0)));
 
-        var result = service.findCandidates(clubId, ownerId, new ScoutingQueryCommand(25D, null, null, null, null));
+        List<ScoutedPlayerResponseCommand> result = service.findCandidates(clubId, ownerId, new ScoutingQueryCommand(25D, null, null, null, null));
 
         assertThat(result).extracting("userId").containsExactly(near, far);
         assertThat(result.getFirst().getFitScore()).isGreaterThan(result.getLast().getFitScore());
@@ -288,7 +292,7 @@ class ClubScoutingServiceImplTest {
         when(playerProfileProvider.lookupScoutingProfiles(eq(SportType.BADMINTON), anyDouble(), anyDouble(), any()))
                 .thenReturn(List.of(candidate(invited, 4, 10, 10.0), candidate(member, 2, 3, 5.0), hidden(hiddenPlayer)));
 
-        var result = service.getShortlist(clubId, ownerId);
+        List<ShortlistEntryResponseCommand> result = service.getShortlist(clubId, ownerId);
 
         assertThat(result).extracting("relation").containsExactly(
                 PlayerClubRelation.INVITED, PlayerClubRelation.MEMBER, PlayerClubRelation.NONE);
@@ -311,7 +315,7 @@ class ClubScoutingServiceImplTest {
 
         when(shortlistRepository.findByClubIdAndUserId(clubId, hiddenPlayer)).thenReturn(Optional.of(
                 ClubShortlistEntry.builder().clubId(clubId).userId(hiddenPlayer).addedBy(ownerId).build()));
-        var saved = service.saveShortlistEntry(clubId, ownerId, hiddenPlayer, "  Hẹn gặp lại mùa sau ");
+        ShortlistEntryResponseCommand saved = service.saveShortlistEntry(clubId, ownerId, hiddenPlayer, "  Hẹn gặp lại mùa sau ");
 
         assertThat(saved.getNote()).isEqualTo("Hẹn gặp lại mùa sau");
     }
@@ -324,7 +328,7 @@ class ClubScoutingServiceImplTest {
         when(playerProfileProvider.lookupScoutingProfiles(any(), anyDouble(), anyDouble(), any()))
                 .thenReturn(List.of(candidate(player, 3, 8, 10.0)));
 
-        var saved = service.saveShortlistEntry(clubId, ownerId, player, " ");
+        ShortlistEntryResponseCommand saved = service.saveShortlistEntry(clubId, ownerId, player, " ");
 
         assertThat(saved.getNote()).isNull();
         assertThat(saved.getRelation()).isEqualTo(PlayerClubRelation.NONE);
@@ -349,7 +353,7 @@ class ClubScoutingServiceImplTest {
         when(invitationRepository.findByClubIdAndStatus(clubId, ClubInvitationStatus.PENDING)).thenReturn(List.of(
                 ClubInvitation.builder().clubId(clubId).inviteeId(invited).status(ClubInvitationStatus.PENDING).build()));
 
-        var relations = service.getRelations(clubId, ownerId, List.of(member, requested, invited, banned, stranger, ownerId));
+        Map<UUID, PlayerClubRelation> relations = service.getRelations(clubId, ownerId, List.of(member, requested, invited, banned, stranger, ownerId));
 
         assertThat(relations).containsEntry(member, PlayerClubRelation.MEMBER)
                 .containsEntry(requested, PlayerClubRelation.REQUESTED)
@@ -357,7 +361,7 @@ class ClubScoutingServiceImplTest {
                 .containsEntry(banned, PlayerClubRelation.BANNED)
                 .containsEntry(stranger, PlayerClubRelation.NONE)
                 .containsEntry(ownerId, PlayerClubRelation.MEMBER);
-        verify(playerProfileProvider, org.mockito.Mockito.never()).findScoutingCandidates(any());
+        verify(playerProfileProvider, never()).findScoutingCandidates(any());
     }
 
     @Test
@@ -398,7 +402,7 @@ class ClubScoutingServiceImplTest {
         when(playerProfileProvider.lookupScoutingProfiles(any(), anyDouble(), anyDouble(), any()))
                 .thenReturn(List.of(hidden(invitee)));
 
-        var result = service.getSentInvitations(clubId, ownerId);
+        List<SentInvitationResponseCommand> result = service.getSentInvitations(clubId, ownerId);
 
         assertThat(result).singleElement().satisfies(item -> {
             assertThat(item.getStatus()).isEqualTo(ClubInvitationStatus.DECLINED);

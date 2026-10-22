@@ -6,6 +6,7 @@ import iuh.fit.clubservice.application.port.persistence.ClubFriendlyMatchReposit
 import iuh.fit.clubservice.application.port.persistence.ClubMemberRepository;
 import iuh.fit.clubservice.application.port.persistence.ClubRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRegistrationRepository;
+import iuh.fit.clubservice.application.service.ClubMatchmakingService;
 import iuh.fit.clubservice.application.service.ClubMatchmakingService.FriendlyResult;
 import iuh.fit.clubservice.application.service.ClubMatchmakingService.Side;
 import iuh.fit.clubservice.domain.entity.Club;
@@ -14,12 +15,14 @@ import iuh.fit.clubservice.domain.entity.ClubMember;
 import iuh.fit.clubservice.domain.enums.ClubMemberStatus;
 import iuh.fit.clubservice.domain.enums.ClubRole;
 import iuh.fit.clubservice.domain.enums.SportType;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -68,7 +71,7 @@ class ClubMatchmakingServiceImplTest {
                 member(club, club.getOwnerId(), ClubRole.OWNER), member(club, admin, ClubRole.ADMIN),
                 member(club, UUID.randomUUID(), ClubRole.MEMBER)));
 
-        var profile = service.getProfile(club.getClubId()).orElseThrow();
+        ClubMatchmakingService.Profile profile = service.getProfile(club.getClubId()).orElseThrow();
 
         assertThat(profile.managerIds()).containsExactly(club.getOwnerId(), admin);
         assertThat(profile.activeMemberCount()).isEqualTo(3);
@@ -101,14 +104,14 @@ class ClubMatchmakingServiceImplTest {
         verify(friendlyMatchRepository).saveAll(saved.capture());
         assertThat(saved.getValue()).extracting("clubId", "opponentName", "clubScore", "opponentScore", "result", "eloBefore", "eloAfter")
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(home.getClubId(), "FC Thảo Điền", 3, 1, "WIN", 1200, 1220),
-                        org.assertj.core.groups.Tuple.tuple(away.getClubId(), "FC Bến Nghé", 1, 3, "LOSS", 1200, 1188));
+                        Tuple.tuple(home.getClubId(), "FC Thảo Điền", 3, 1, "WIN", 1200, 1220),
+                        Tuple.tuple(away.getClubId(), "FC Bến Nghé", 1, 3, "LOSS", 1200, 1188));
 
         when(friendlyMatchRepository.findBySessionId(sessionId)).thenReturn(saved.getValue());
         assertThat(service.applyFriendlyResult(new FriendlyResult(sessionId, SportType.FOOTBALL, "FOOTBALL_7",
                 new Side(home.getClubId(), 3), new Side(away.getClubId(), 1))))
                 .containsEntry(home.getClubId(), 1220).containsEntry(away.getClubId(), 1188);
-        verify(clubRepository, org.mockito.Mockito.times(2)).save(any());
+        verify(clubRepository, Mockito.times(2)).save(any());
     }
 
     @Test

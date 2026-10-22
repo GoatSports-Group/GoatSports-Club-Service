@@ -1,5 +1,7 @@
 package iuh.fit.clubservice.application.service.impl;
 
+import iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand;
+import iuh.fit.clubservice.application.dto.response.TournamentVenueReservationResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.port.persistence.TournamentFixtureRepository;
 import iuh.fit.clubservice.application.port.persistence.TournamentRepository;
@@ -117,9 +119,9 @@ class TournamentScheduleServiceImplTest {
         return reservation;
     }
 
-    private iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand moveTo(
+    private ReserveTournamentVenueCommand moveTo(
             UUID courtId, LocalDate date, int startHour) {
-        return iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand.builder()
+        return ReserveTournamentVenueCommand.builder()
                 .tournamentId(tournamentId).actorUserId(organizerId).courtId(courtId).playDate(date)
                 .startTime(LocalTime.of(startHour, 0)).endTime(LocalTime.of(startHour + 1, 0)).build();
     }
@@ -136,7 +138,7 @@ class TournamentScheduleServiceImplTest {
                 .thenReturn(List.of(reservation));
         when(reservationRepository.save(reservation)).thenReturn(reservation);
 
-        var result = service.rescheduleReservation(reservationId, moveTo(courtB, day, 20));
+        TournamentVenueReservationResponseCommand result = service.rescheduleReservation(reservationId, moveTo(courtB, day, 20));
 
         assertThat(result.getReservationId()).isEqualTo(reservationId);
         assertThat(reservation.getCourtId()).isEqualTo(courtB);

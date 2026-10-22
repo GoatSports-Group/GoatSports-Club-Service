@@ -2,6 +2,7 @@ package iuh.fit.clubservice.presentation.request;
 
 import iuh.fit.clubservice.domain.enums.ClubApprovalMode;
 import iuh.fit.clubservice.domain.enums.ClubPrivacy;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -26,7 +27,7 @@ public class UpdateClubRequest {
     @Size(max = 255, message = "Địa chỉ sinh hoạt tối đa 255 ký tự")
     private String location;
     @Size(max = 5, message = "Mỗi câu lạc bộ có tối đa 5 badge")
-    private List<@jakarta.validation.constraints.NotBlank(message = "Badge không được để trống")
+    private List<@NotBlank(message = "Badge không được để trống")
             @Size(max = 24, message = "Mỗi badge tối đa 24 ký tự") String> tags;
     private ClubPrivacy privacy;
     private ClubApprovalMode approvalMode;

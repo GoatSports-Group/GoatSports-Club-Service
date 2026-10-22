@@ -192,7 +192,7 @@ public class TournamentFixtureServiceImpl implements TournamentFixtureService {
             int matches = bracketSize >> round;
             List<TournamentFixture> current = new ArrayList<>();
             for (int index = 0; index < matches; index++) {
-                var builder = TournamentFixture.builder()
+                TournamentFixture.TournamentFixtureBuilder<?, ?> builder = TournamentFixture.builder()
                         .tournamentId(tournamentId)
                         .roundName(BracketPolicy.roundName(round, totalRounds))
                         .roundNumber(round)

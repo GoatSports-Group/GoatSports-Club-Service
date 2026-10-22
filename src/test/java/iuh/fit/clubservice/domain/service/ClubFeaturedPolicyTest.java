@@ -2,6 +2,7 @@ package iuh.fit.clubservice.domain.service;
 
 import iuh.fit.clubservice.domain.enums.SportType;
 import iuh.fit.clubservice.domain.service.ClubFeaturedPolicy.Stats;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -45,7 +46,7 @@ class ClubFeaturedPolicyTest {
         assertThat(ClubFeaturedPolicy.score(club, Set.of(), Set.of())).isEqualTo(base);
         assertThat(ClubFeaturedPolicy.score(club, Set.of(SportType.BADMINTON), Set.of())).isEqualTo(base * 1.25);
         assertThat(ClubFeaturedPolicy.score(club, Set.of(SportType.BADMINTON), Set.of("ho-chi-minh")))
-                .isCloseTo(base * 1.25 * 1.15, org.assertj.core.data.Offset.offset(1e-9));
+                .isCloseTo(base * 1.25 * 1.15, Offset.offset(1e-9));
         assertThat(ClubFeaturedPolicy.score(club, Set.of(SportType.FOOTBALL), Set.of("ha-noi"))).isEqualTo(base);
     }
 

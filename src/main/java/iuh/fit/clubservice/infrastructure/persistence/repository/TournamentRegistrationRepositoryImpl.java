@@ -8,6 +8,7 @@ import iuh.fit.clubservice.infrastructure.persistence.repository.jpa.JpaTourname
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +78,7 @@ public class TournamentRegistrationRepositoryImpl implements TournamentRegistrat
 
     @Override
     public List<TournamentRegistration> findByStatusAndPaymentDeadlineBefore(RegistrationStatus status,
-                                                                           java.time.LocalDateTime deadline) {
+                                                                           LocalDateTime deadline) {
         return jpaTournamentRegistrationRepository.findByStatusAndPaymentDeadlineBefore(status, deadline).stream()
                 .map(tournamentRegistrationEntityMapper::toDomain).collect(Collectors.toList());
     }

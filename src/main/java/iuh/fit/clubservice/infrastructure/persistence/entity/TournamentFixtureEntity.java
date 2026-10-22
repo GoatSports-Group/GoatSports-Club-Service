@@ -45,6 +45,6 @@ public class TournamentFixtureEntity extends BaseEntity {
     @Column(name = "status", nullable = false)
     private MatchStatus status;
     @Column(name = "rating_synced", nullable = false)
-    @lombok.Builder.Default
+    @Builder.Default
     private Boolean ratingSynced = Boolean.TRUE;
 }

@@ -89,7 +89,7 @@ public class AuthPlayerProfileAdapter implements PlayerProfileProvider {
                 .orElse(null);
     }
 
-    private <T> T unwrap(iuh.fit.clubservice.application.dto.response.base.BaseResponse<T> response) {
+    private <T> T unwrap(BaseResponse<T> response) {
         return response == null ? null : response.getData();
     }
 }

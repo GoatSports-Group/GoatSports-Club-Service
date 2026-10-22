@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
@@ -74,7 +75,7 @@ public class ClubMediaStorageAdapter implements ClubMediaStorage {
     }
 
     private List<String> resolveUrls(List<String> keys) throws ServiceException {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<String>> pendingUrls = keys.stream()
                     .map(key -> executor.submit(() -> storageClient.getFileUrl(key)))
                     .toList();

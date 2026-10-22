@@ -30,6 +30,7 @@ import iuh.fit.clubservice.domain.service.SportParticipationPolicy;
 import iuh.fit.clubservice.domain.service.SportParticipationPolicy.PlayFormat;
 import iuh.fit.clubservice.domain.service.TournamentLifecyclePolicy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.text.NumberFormat;
@@ -53,7 +54,7 @@ import java.util.UUID;
  * ({@link TournamentTeamServiceImpl}): tra cứu có khóa, các điều kiện chặn, chuyển trạng thái khi đủ điều kiện,
  * phát sự kiện và dựng response. Không mở transaction riêng — luôn chạy trong transaction của use case gọi nó.
  */
-@lombok.extern.slf4j.Slf4j
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class TournamentRegistrationSupport {

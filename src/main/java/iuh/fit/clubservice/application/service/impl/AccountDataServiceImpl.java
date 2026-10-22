@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -49,7 +50,7 @@ public class AccountDataServiceImpl implements AccountDataService {
         boolean inRunningTournament = registrationRepository.findTournamentIdsByParticipant(userId, HOLDING_A_SPOT)
                 .stream()
                 .map(tournamentRepository::findById)
-                .flatMap(java.util.Optional::stream)
+                .flatMap(Optional::stream)
                 .anyMatch(tournament -> tournament.getStatus() != TournamentStatus.COMPLETED
                         && tournament.getStatus() != TournamentStatus.CANCELLED);
         if (inRunningTournament) blockers.add("TOURNAMENT_IN_PROGRESS");

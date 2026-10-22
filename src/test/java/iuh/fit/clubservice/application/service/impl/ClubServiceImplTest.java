@@ -5,6 +5,13 @@ import iuh.fit.clubservice.application.dto.request.JoinClubCommand;
 import iuh.fit.clubservice.application.dto.request.RespondClubMemberCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubActivityCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateClubCommand;
+import iuh.fit.clubservice.application.dto.response.ClubActivityResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ClubInvitationResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ClubMemberResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ClubRecentMatchResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ClubResponseCommand;
+import iuh.fit.clubservice.application.dto.response.ClubTournamentResponseCommand;
+import iuh.fit.clubservice.application.dto.response.MyClubMembershipResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
 import iuh.fit.clubservice.application.dto.request.CreateClubActivityCommand;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
@@ -42,9 +49,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -130,7 +139,7 @@ class ClubServiceImplTest {
 
         ArgumentCaptor<Club> captor = ArgumentCaptor.forClass(Club.class);
         verify(conversationSync).sync(any(), any());
-        verify(clubRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        verify(clubRepository, Mockito.atLeastOnce()).save(captor.capture());
         assertThat(captor.getAllValues()).anySatisfy(saved ->
                 assertThat(saved.getConversationId()).isEqualTo(conversationId));
         assertThat(captor.getAllValues().getFirst().getTags()).containsExactly("Giao lưu", "Thi đấu");
@@ -141,7 +150,7 @@ class ClubServiceImplTest {
     void clubIsStillCreatedWhenSocialFails() {
         when(conversationSync.sync(any(), any())).thenReturn(Optional.empty());
 
-        var response = service.createClub(CreateClubCommand.builder()
+        ClubResponseCommand response = service.createClub(CreateClubCommand.builder()
                 .ownerId(ownerId).name("CLB không chat").sportType(SportType.FOOTBALL).build());
 
         assertThat(response).isNotNull();
@@ -155,7 +164,7 @@ class ClubServiceImplTest {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
         when(memberRepository.findByClubIdAndUserId(clubId, newcomer)).thenReturn(Optional.empty());
 
-        var response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer).build());
+        ClubMemberResponseCommand response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer).build());
 
         assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
         verify(conversationSync).sync(any(), any());
@@ -168,7 +177,7 @@ class ClubServiceImplTest {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.MANUAL)));
         when(memberRepository.findByClubIdAndUserId(clubId, newcomer)).thenReturn(Optional.empty());
 
-        var response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer)
+        ClubMemberResponseCommand response = service.joinClub(JoinClubCommand.builder().clubId(clubId).userId(newcomer)
                 .introMessage("Tôi muốn tham gia lịch tập cuối tuần.").build());
 
         assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.PENDING);
@@ -268,7 +277,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndStatus(clubId, ClubMemberStatus.ACTIVE, pageable))
                 .thenReturn(new PageImpl<>(List.of(member), pageable, 8));
 
-        var page = service.getClubMembersPage(clubId, null, ClubMemberStatus.ACTIVE, pageable);
+        Page<ClubMemberResponseCommand> page = service.getClubMembersPage(clubId, null, ClubMemberStatus.ACTIVE, pageable);
 
         assertThat(page.getContent()).hasSize(1);
         assertThat(page.getTotalElements()).isEqualTo(8);
@@ -487,7 +496,7 @@ class ClubServiceImplTest {
     void renamingClubSyncsConversation() throws ServiceException {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club(ClubApprovalMode.AUTO)));
 
-        var response = service.updateClub(UpdateClubCommand.builder()
+        ClubResponseCommand response = service.updateClub(UpdateClubCommand.builder()
                 .clubId(clubId).actorUserId(ownerId).name("  CLB doi ten  ").build());
 
         assertThat(response.getName()).isEqualTo("CLB doi ten");
@@ -503,7 +512,7 @@ class ClubServiceImplTest {
         when(mediaStorage.finalizeUpload("temp/clubs/banners/banner.webp", "club-banner:" + clubId))
                 .thenReturn("https://cdn.goatsports.test/clubs/banners/banner.webp");
 
-        var response = service.updateClub(UpdateClubCommand.builder()
+        ClubResponseCommand response = service.updateClub(UpdateClubCommand.builder()
                 .clubId(clubId).actorUserId(ownerId)
                 .logoUrl("temp/clubs/logos/logo.webp")
                 .bannerUrl("temp/clubs/banners/banner.webp")
@@ -524,7 +533,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndUserId(clubId, adminUserId)).thenReturn(Optional.of(
                 memberWithRole(UUID.randomUUID(), adminUserId, ClubRole.ADMIN)));
 
-        var response = service.updateClub(UpdateClubCommand.builder()
+        ClubResponseCommand response = service.updateClub(UpdateClubCommand.builder()
                 .clubId(clubId)
                 .actorUserId(adminUserId)
                 .city("  ho-chi-minh  ")
@@ -724,7 +733,7 @@ class ClubServiceImplTest {
             return saved;
         });
 
-        var response = invitations.inviteMember(clubId, memberUserId, "Vào đá với anh em nhé", ownerId);
+        ClubInvitationResponseCommand response = invitations.inviteMember(clubId, memberUserId, "Vào đá với anh em nhé", ownerId);
 
         assertThat(response.getStatus()).isEqualTo(ClubInvitationStatus.PENDING);
         verify(eventPublisher).invitationSent(any(), any());
@@ -778,7 +787,7 @@ class ClubServiceImplTest {
         when(memberRepository.findByClubIdAndUserId(clubId, memberUserId)).thenReturn(Optional.empty());
         when(invitationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        var response = invitations.acceptInvitation(invitationId, memberUserId);
+        ClubMemberResponseCommand response = invitations.acceptInvitation(invitationId, memberUserId);
 
         assertThat(response.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
         verify(conversationSync).sync(any(), any());
@@ -822,7 +831,7 @@ class ClubServiceImplTest {
         when(activityRepository.findUpcomingByClubId(eq(clubId), any(LocalDateTime.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(activity), pageable, 1));
 
-        var page = activities.getClubActivitiesPage(clubId, pageable);
+        Page<ClubActivityResponseCommand> page = activities.getClubActivitiesPage(clubId, pageable);
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("title").containsExactly("Buổi tập chiến thuật");
@@ -852,7 +861,7 @@ class ClubServiceImplTest {
         when(tournamentRepository.findById(tournamentId)).thenReturn(Optional.of(
                 Tournament.builder().tournamentId(tournamentId).name("GOAT Community Cup").build()));
 
-        var matches = matchService.getClubRecentMatches(clubId, 3);
+        List<ClubRecentMatchResponseCommand> matches = matchService.getClubRecentMatches(clubId, 3);
 
         assertThat(matches).hasSize(1);
         assertThat(matches.get(0).getOpponentName()).isEqualTo("Weekend FC");
@@ -861,7 +870,7 @@ class ClubServiceImplTest {
         assertThat(matches.get(0).getResult()).isEqualTo("WIN");
         assertThat(matches.get(0).getPlayedAt()).isEqualTo(playedAt);
 
-        var page = matchService.getClubMatchesPage(clubId, null, PageRequest.of(0, 3));
+        Page<ClubRecentMatchResponseCommand> page = matchService.getClubMatchesPage(clubId, null, PageRequest.of(0, 3));
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting("opponentName").containsExactly("Weekend FC");
 
@@ -871,7 +880,7 @@ class ClubServiceImplTest {
                 .clubScore(3).opponentScore(3).result("DRAW").eloBefore(1200).eloAfter(1206)
                 .playedAt(LocalDateTime.now().minusHours(3)).build()));
 
-        var withFriendly = matchService.getClubRecentMatches(clubId, 3);
+        List<ClubRecentMatchResponseCommand> withFriendly = matchService.getClubRecentMatches(clubId, 3);
         assertThat(withFriendly).extracting("opponentName").containsExactly("FC Thảo Điền", "Weekend FC");
         assertThat(withFriendly.get(0).isFriendly()).isTrue();
         assertThat(withFriendly.get(0).getTournamentId()).isNull();
@@ -914,10 +923,10 @@ class ClubServiceImplTest {
                         .score1(21).score2(10).status(MatchStatus.COMPLETED).build()));
         when(tournamentFixtureRepository.findByTournamentId(upcomingId)).thenReturn(List.of());
 
-        var tournaments = matchService.getClubTournaments(clubId);
+        List<ClubTournamentResponseCommand> tournaments = matchService.getClubTournaments(clubId);
 
         assertThat(tournaments).extracting("name").containsExactly("Autumn Cup", "Shuttle League");
-        var played = tournaments.get(1);
+        ClubTournamentResponseCommand played = tournaments.get(1);
         assertThat(played.getPlayed()).isEqualTo(2);
         assertThat(played.getWon()).isEqualTo(1);
         assertThat(played.getDrawn()).isEqualTo(1);
@@ -951,7 +960,7 @@ class ClubServiceImplTest {
                 .thenReturn(List.of(membership));
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
 
-        var result = service.getMyMemberships(memberUserId, ClubMemberStatus.ACTIVE);
+        List<MyClubMembershipResponseCommand> result = service.getMyMemberships(memberUserId, ClubMemberStatus.ACTIVE);
 
         assertThat(result).isEmpty();
     }
@@ -1070,7 +1079,7 @@ class ClubServiceImplTest {
     void disbandedClubIsStillReadable() throws Exception {
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(disbandedClub()));
 
-        var response = service.getClubDetails(clubId);
+        ClubResponseCommand response = service.getClubDetails(clubId);
 
         assertThat(response.getActive()).isFalse();
         assertThat(response.getDisbandedAt()).isNotNull();
@@ -1088,7 +1097,7 @@ class ClubServiceImplTest {
         when(memberRepository.findById(membershipId)).thenReturn(Optional.of(successor));
         when(memberRepository.findByClubIdAndUserId(clubId, ownerId)).thenReturn(Optional.of(previousOwner));
 
-        var response = service.transferOwnership(clubId, membershipId, ownerId);
+        ClubMemberResponseCommand response = service.transferOwnership(clubId, membershipId, ownerId);
 
         assertThat(response.getRole()).isEqualTo(ClubRole.OWNER);
         assertThat(previousOwner.getRole()).isEqualTo(ClubRole.ADMIN);

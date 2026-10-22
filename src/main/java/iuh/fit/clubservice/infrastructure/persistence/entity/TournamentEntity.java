@@ -74,7 +74,7 @@ public class TournamentEntity extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rules", columnDefinition = "jsonb")
     private List<String> rules;
 

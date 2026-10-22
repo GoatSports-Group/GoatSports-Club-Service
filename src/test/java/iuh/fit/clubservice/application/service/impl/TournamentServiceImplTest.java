@@ -4,11 +4,16 @@ import iuh.fit.clubservice.application.dto.request.CreateTournamentCommand;
 import iuh.fit.clubservice.application.dto.request.ReserveTournamentVenueCommand;
 import iuh.fit.clubservice.application.dto.request.UpdateFixtureResultCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentFixtureResponseCommand;
+import iuh.fit.clubservice.application.dto.response.TournamentResponseCommand;
 import iuh.fit.clubservice.application.dto.response.TournamentStandingResponseCommand;
+import iuh.fit.clubservice.application.dto.response.TournamentVenueReservationResponseCommand;
 import iuh.fit.clubservice.application.exception.ServiceException;
+import iuh.fit.clubservice.application.port.external.PlayerProfileProvider;
 import iuh.fit.clubservice.application.port.external.VenueCourtHold;
 import iuh.fit.clubservice.application.port.persistence.*;
+import iuh.fit.clubservice.application.service.TournamentRatingService;
 import iuh.fit.clubservice.application.service.TournamentRegistrationService;
+import iuh.fit.clubservice.application.service.TournamentService;
 import iuh.fit.clubservice.domain.entity.*;
 import iuh.fit.clubservice.domain.enums.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +25,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -30,6 +39,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,9 +63,9 @@ class TournamentServiceImplTest {
     @Mock private ClubRepository clubRepository;
     @Mock private VenueCourtHold venueCourtHold;
     @Mock private TournamentRegistrationService registrationService;
-    @Mock private iuh.fit.clubservice.application.port.persistence.TournamentLineupRepository lineupRepository;
-    @Mock private iuh.fit.clubservice.application.port.external.PlayerProfileProvider playerProfileProvider;
-    @Mock private iuh.fit.clubservice.application.service.TournamentRatingService ratingService;
+    @Mock private TournamentLineupRepository lineupRepository;
+    @Mock private PlayerProfileProvider playerProfileProvider;
+    @Mock private TournamentRatingService ratingService;
 
     private TournamentServiceImpl service;
     private TournamentFixtureServiceImpl fixtureService;
@@ -162,7 +172,7 @@ class TournamentServiceImplTest {
     @Test
     @DisplayName("lưu nháp chỉ kiểm tra sân, chưa khóa sân của người chơi")
     void draftOnlyValidatesCourts() throws ServiceException {
-        var created = service.createTournament(createCommand(false, 8, List.of(court1), LocalTime.of(8, 0), LocalTime.of(20, 0)));
+        TournamentResponseCommand created = service.createTournament(createCommand(false, 8, List.of(court1), LocalTime.of(8, 0), LocalTime.of(20, 0)));
 
         assertThat(created.getStatus()).isEqualTo(TournamentStatus.DRAFT);
         verify(venueCourtHold).hold(any(), eq(true));
@@ -249,7 +259,7 @@ class TournamentServiceImplTest {
                 .tournamentId(tournamentId).roundNumber(1).registration1Id(winner).registration2Id(finalist)
                 .winnerRegistrationId(winner).status(MatchStatus.COMPLETED).build()));
 
-        var response = service.getTournamentDetails(tournamentId, organizerId);
+        TournamentResponseCommand response = service.getTournamentDetails(tournamentId, organizerId);
 
         assertThat(response.getChampionRegistrationId()).isEqualTo(winner);
         assertThat(response.getChampionName()).isEqualTo("Code FC");
@@ -262,12 +272,12 @@ class TournamentServiceImplTest {
         Tournament done = tournament(TournamentStatus.COMPLETED, TournamentFormat.SINGLE_ELIMINATION, 8);
         done.setTournamentId(UUID.randomUUID());
         when(tournamentRepository.findByOrganizerId(eq(organizerId), any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(open, done)));
+                .thenReturn(new PageImpl<>(List.of(open, done)));
         when(registrationRepository.findByTournamentId(tournamentId)).thenReturn(List.of(
                 TournamentRegistration.builder().status(RegistrationStatus.CONFIRMED).build(),
                 TournamentRegistration.builder().status(RegistrationStatus.CANCELLED).build()));
 
-        var summary = service.getOrganizerSummary(organizerId);
+        TournamentService.OrganizerSummary summary = service.getOrganizerSummary(organizerId);
 
         assertThat(summary.total()).isEqualTo(2);
         assertThat(summary.byStatus().get(TournamentStatus.REGISTRATION_OPEN)).isEqualTo(1L);
@@ -359,7 +369,7 @@ class TournamentServiceImplTest {
     void responseCarriesPlayFormat() throws ServiceException {
         stubTournament(tournament(TournamentStatus.PUBLISHED, TournamentFormat.SINGLE_ELIMINATION, 8));
 
-        var response = service.getTournamentDetails(tournamentId, null);
+        TournamentResponseCommand response = service.getTournamentDetails(tournamentId, null);
 
         assertThat(response.getParticipantType()).isEqualTo(ParticipantType.TEAM);
         assertThat(response.getRosterMin()).isEqualTo(7);
@@ -401,7 +411,7 @@ class TournamentServiceImplTest {
                 .ruleType(EligibilityRuleType.AGE).operator(EligibilityRuleOperator.LESS_THAN_OR_EQUAL)
                 .expectedValue("35").build()));
 
-        var response = service.updateTournament(tournamentId, command);
+        TournamentResponseCommand response = service.updateTournament(tournamentId, command);
 
         assertThat(response.getEntryFee()).isEqualTo(80000D);
         assertThat(response.getMaxParticipants()).isEqualTo(16);
@@ -445,7 +455,7 @@ class TournamentServiceImplTest {
         stubTournament(tournament);
         when(reservationRepository.findActiveOverlaps(any(), any(), any(), any())).thenReturn(List.of());
 
-        var response = schedule.reserveVenue(reserve(court1, tournament.getStartDate(), LocalTime.of(8, 0), LocalTime.of(9, 0)));
+        TournamentVenueReservationResponseCommand response = schedule.reserveVenue(reserve(court1, tournament.getStartDate(), LocalTime.of(8, 0), LocalTime.of(9, 0)));
 
         assertThat(response.getVenueId()).isEqualTo(venueId);
         assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
@@ -566,7 +576,7 @@ class TournamentServiceImplTest {
         return fixtures.stream()
                 .filter(item -> item.getRoundNumber() == 1)
                 .sorted((a, b) -> Integer.compare(a.getMatchNumber(), b.getMatchNumber()))
-                .flatMap(item -> java.util.stream.Stream.of(item.getRegistration1Id(), item.getRegistration2Id()))
+                .flatMap(item -> Stream.of(item.getRegistration1Id(), item.getRegistration2Id()))
                 .toList();
     }
 
@@ -739,7 +749,7 @@ class TournamentServiceImplTest {
         stubTournament(tournament(TournamentStatus.IN_PROGRESS, TournamentFormat.ROUND_ROBIN, 8));
         when(registrationRepository.findById(regA)).thenReturn(Optional.of(registration(regA, clubA)));
         when(registrationRepository.findById(regB)).thenReturn(Optional.of(registration(regB, clubB)));
-        Map<UUID, Club> clubs = java.util.stream.Stream.of(first, secondClub)
+        Map<UUID, Club> clubs = Stream.of(first, secondClub)
                 .collect(Collectors.toMap(Club::getClubId, Function.identity()));
         when(clubRepository.findById(any())).thenAnswer(call -> Optional.ofNullable(clubs.get(call.getArgument(0))));
         when(clubRepository.save(any())).thenAnswer(call -> call.getArgument(0));
@@ -758,10 +768,10 @@ class TournamentServiceImplTest {
     void participatingTournamentsPassFiltersToTheRepository() {
         UUID player = UUID.randomUUID();
         UUID joinedId = UUID.randomUUID();
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 12);
+        Pageable pageable = PageRequest.of(0, 12);
         when(registrationRepository.findTournamentIdsByParticipant(eq(player), any())).thenReturn(List.of(joinedId));
         when(tournamentRepository.searchParticipating(any(), any(), any(), any(), any(), any()))
-                .thenReturn(org.springframework.data.domain.Page.empty(pageable));
+                .thenReturn(Page.empty(pageable));
 
         service.getParticipatingTournaments(player, TournamentStatus.IN_PROGRESS, SportType.BADMINTON, "  cầu lông ", pageable);
 

@@ -3,6 +3,7 @@ package iuh.fit.clubservice.infrastructure.persistence.repository.jpa;
 import iuh.fit.clubservice.infrastructure.persistence.entity.ClubShortlistEntryEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,6 @@ public interface JpaClubShortlistRepository extends JpaRepository<ClubShortlistE
 
     long countByClubId(UUID clubId);
 
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     void deleteByUserId(UUID userId);
 }

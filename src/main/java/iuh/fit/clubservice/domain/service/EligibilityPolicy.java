@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.IntPredicate;
 
 public final class EligibilityPolicy {
 
@@ -108,7 +109,7 @@ public final class EligibilityPolicy {
         return shouldEqual == (actual == value);
     }
 
-    private static boolean compare(int actual, String expected, java.util.function.IntPredicate predicate) {
+    private static boolean compare(int actual, String expected, IntPredicate predicate) {
         Integer value = toInt(expected);
         return value != null && predicate.test(value);
     }

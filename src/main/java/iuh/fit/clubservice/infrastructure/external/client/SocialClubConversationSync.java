@@ -1,5 +1,6 @@
 package iuh.fit.clubservice.infrastructure.external.client;
 
+import iuh.fit.clubservice.application.dto.response.base.BaseResponse;
 import iuh.fit.clubservice.application.port.external.ClubConversationSync;
 import iuh.fit.clubservice.domain.entity.Club;
 import iuh.fit.clubservice.domain.entity.Tournament;
@@ -33,7 +34,7 @@ public class SocialClubConversationSync implements ClubConversationSync {
     private Optional<UUID> send(UUID contextId, String type, String name, String avatarUrl,
                                 UUID ownerId, List<UUID> memberIds, String label) {
         try {
-            var response = socialClient.syncContextConversation(contextId,
+            BaseResponse<SocialClient.ConversationView> response = socialClient.syncContextConversation(contextId,
                     new SocialClient.SyncConversationPayload(type, name, avatarUrl, ownerId, memberIds));
             SocialClient.ConversationView view = response == null ? null : response.getData();
             return view == null ? Optional.empty() : Optional.ofNullable(view.conversationId());
